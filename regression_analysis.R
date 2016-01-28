@@ -17,9 +17,12 @@ df_prot <- read.delim(file.path(DATADIR,"Oslo2-RPPA_data.csv"), stringsAsFactors
 # Convert Expression sets to matrices
 mrna <- as.data.frame(exprs(eset_mrna))
 mirna <- as.data.frame(exprs(eset_mirna))
-
-
-
+# Convert from GSM IDs to OSLO2 patient IDs (with dash to dot for col names)
+smplnames <- pData(eset_mirna)[colnames(mirna),"title"]
+colnames(mirna) <- sub("-", ".", sub("BreastTumor_", "", smplnames))
+smplnames <- pData(eset_mrna)[colnames(mrna),"title"]
+colnames(mrna) <- sub("-", ".", sub("BreastTumor_", "", smplnames))
+rm(smplnames)
 
 
 ### PREPROCESS ####
