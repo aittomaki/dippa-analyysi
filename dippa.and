@@ -1,0 +1,43 @@
+#!/usr/bin/env anduril-runner
+//$ -d $HOME/wrk/dippa-execute
+//$ --log $HOME/wrk/dippa-execute/log
+//$ --java-heap 4000
+//$ --threads 4
+
+
+
+
+// INIT
+//==========================================================
+// Parameters
+startFromRaw        = false
+corMethod           = "spearman"
+corMinCompleteCases = 20
+corPThresh          = 1
+// Input data
+DATADIR = $HOME+"/wrk/dippa-data"
+proteinMessy = INPUT(path=DATADIR+"/Oslo2-RPPA_data.csv")
+mirna = INPUT(path=DATADIR+"/mirna.csv")
+mrna = INPUT(path=DATADIR+"/mrna.csv")
+mrnaAnnotAgilent = INPUT(path=DATADIR+"/mrna_annot.csv")
+
+
+
+
+// PREPROCESS
+//==========================================================
+
+// Expand a AKT1/2/3 type proteins and remove antibody column
+proteinAnnotExpand = INPUT(path="protein_expandannot.csv")
+proteinExpand = IDConvert(
+	csv = proteinMessy,
+	conversionTable = proteinAnnotExpand,
+	sourceColumn = "Gene",
+	keyColumn = "GeneJoined",
+	conversionColumn = "GeneExpanded",
+	splitConverted = true,
+	originalWhenMissing = true)
+protein = CSVFilter(
+	csv = proteinExpand,
+	includeColumns = "Antibody",
+	negate = true)
