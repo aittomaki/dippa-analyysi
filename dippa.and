@@ -15,11 +15,12 @@ corMethod           = "spearman"
 corMinCompleteCases = 20
 corPThresh          = 1
 // Input data
-DATADIR = $HOME+"/wrk/dippa-data"
-proteinMessy = INPUT(path=DATADIR+"/Oslo2-RPPA_data.csv")
-mirna = INPUT(path=DATADIR+"/mirna.csv")
-mrna = INPUT(path=DATADIR+"/mrna.csv")
-mrnaAnnotAgilent = INPUT(path=DATADIR+"/mrna_annot.csv")
+CODEDIR = $HOME+"/wrk/dippa-analyysi/"
+DATADIR = $HOME+"/wrk/dippa-data/"
+proteinMessy = INPUT(path=DATADIR+"Oslo2-RPPA_data.csv")
+mirna = INPUT(path=DATADIR+"mirna.csv")
+mrna = INPUT(path=DATADIR+"mrna.csv")
+mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
 
 
 
@@ -27,8 +28,9 @@ mrnaAnnotAgilent = INPUT(path=DATADIR+"/mrna_annot.csv")
 // PREPROCESS
 //==========================================================
 
-// Expand a AKT1/2/3 type proteins and remove antibody column
-proteinAnnotExpand = INPUT(path="protein_expandannot.csv")
+// Expand a AKT1/2/3 type proteins, rename samples (- to .) and remove
+// antibody column
+proteinAnnotExpand = INPUT(path=CODEDIR+"protein_expandannot.csv")
 proteinExpand = IDConvert(
 	csv = proteinMessy,
 	conversionTable = proteinAnnotExpand,
@@ -37,16 +39,22 @@ proteinExpand = IDConvert(
 	conversionColumn = "GeneExpanded",
 	splitConverted = true,
 	originalWhenMissing = true)
+proteinRename = SearchReplace(
+	file = proteinExpand,
+	key00 = "(OSL2.)-(.{6})",
+	value00 = "$1.$2")
 protein = CSVFilter(
-	csv = proteinExpand,
+	csv = proteinRename,
 	includeColumns = "Antibody",
 	negate = true)
 
 // Convert mrna probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
 	filter = mrnaAnnotAgilent,
-	filterTypes = "",
-	attributes = "")
+	filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
+	attributes = "external_gene_name,ensembl_gene_id",
+	martHost = "www.ensembl.org",
+	@enabled = false)
 geneAgilent = IDConvert(
 	csv = mrna,
 	conversionTable = mrnaAnnotAgilent,
@@ -59,15 +67,15 @@ geneAgilent = IDConvert(
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
-regressionScript = INPUT(path="regression_analysis.R")
-regressionModelFile = "simple_priors.stan"
-testGenes = "BRAF,SYK"
-testMirnas = "hsa-miR-638,hsa-miR-671-5p,hsa-miR-107"
+regressionScript = INPUT(path=CODEDIR+"regression_analysis.R")
+regressionModelFile = CODEDIR+"simple_priors.stan"
+testGenes = "BRAF,GSK3B,PTK2"
+testMirnas = "hsa-miR-638,let-7d,miR-193a-3p"
 
 regression = REvaluate(
 	script = regressionScript,
 	table1 = protein,
-	table2 = gene,
+	table2 = geneAgilent,
 	table3 = mirna,
 	param1 = regressionModelFile,
 	param2 = testGenes,
