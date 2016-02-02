@@ -41,3 +41,34 @@ protein = CSVFilter(
 	csv = proteinExpand,
 	includeColumns = "Antibody",
 	negate = true)
+
+// Convert mrna probe accession IDs to gene names
+geneAnnotBiomart = BiomartAnnotator(
+	filter = mrnaAnnotAgilent,
+	filterTypes = "",
+	attributes = "")
+geneAgilent = IDConvert(
+	csv = mrna,
+	conversionTable = mrnaAnnotAgilent,
+	conversionColumn = "GENE_SYMBOL",
+	unique = true,
+	collapseNumeric = "mean",
+	dropMissing = true)
+
+
+
+// BAYESIAN REGRESSION ANALYSIS
+//==========================================================
+regressionScript = INPUT(path="regression_analysis.R")
+regressionModelFile = "simple_priors.stan"
+testGenes = "BRAF,SYK"
+testMirnas = "hsa-miR-638,hsa-miR-671-5p,hsa-miR-107"
+
+regression = REvaluate(
+	script = regressionScript,
+	table1 = protein,
+	table2 = gene,
+	table3 = mirna,
+	param1 = regressionModelFile,
+	param2 = testGenes,
+	param3 = testMirnas)
