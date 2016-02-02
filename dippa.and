@@ -70,7 +70,7 @@ geneAgilent = IDConvert(
 regressionScript = INPUT(path=CODEDIR+"regression_analysis.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
 testGenes = "BRAF,GSK3B,PTK2"
-testMirnas = "hsa-miR-638,let-7d,miR-193a-3p"
+testMirnas = "hsa-miR-638,hsa-let-7d,hsa-miR-193a-3p"
 
 regression = REvaluate(
 	script = regressionScript,

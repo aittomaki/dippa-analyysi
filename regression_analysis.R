@@ -1,3 +1,4 @@
+
 ### INIT ####
 
 # necessary libraries
@@ -15,11 +16,8 @@ model_file <- param1
 gene_names <- unlist(strsplit(param2, ","))
 mirna_names <- unlist(strsplit(param3, ","))
 
-print(paste("gene",class(gene),paste(dim(gene),collapse=",")))
-print(paste("prot",class(prot),paste(dim(prot),collapse=",")))
-print(paste("mirna",class(mirna),paste(dim(mirna),collapse=",")))
 
-### For running outside Anduril, uncomment the following
+### For running outside Anduril, use this block
 # # path to data
 # DATADIR <- "~/wrk/dippa-data/"
 # # Load data
@@ -46,7 +44,7 @@ names <- matrix(nrow=0, ncol=3)
 for(g in gene_names) {
     for(m in mirna_names){
         datalist <- list(N=length(samples), J=1, P=as.numeric((prot[g,samples])), M=as.matrix(mirna[m,samples]), G=as.numeric(gene[g,samples]))
-        fit <- stan(file=model_file, data=datalist)
+        fit <- stan(file=model_file, data=datalist, model_name=paste(g,m,"uni",sep="_"))
         fitlist <- c(fitlist, list(fit))
         names(fitlist)[length(fitlist)] <- paste(g,m,sep="_")
         post_new <- summary(fit)$summary[varnames, valuenames]
