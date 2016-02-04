@@ -3,8 +3,6 @@
 
 # necessary libraries
 library(rstan)
-rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
 
 
 ### For running under Anduril, use this block
@@ -77,6 +75,8 @@ for(g in gene_names) {
         post <- as.data.frame(cbind(Gene=rep(g,nrow(post)), miRNA=rep(m,nrow(post)), coef=rownames(post), post))
         posteriors <- c(posteriors, list(post))
         names(posteriors)[length(posteriors)] <- paste(g,m,"uni",sep="_")
+
+        save(fits, fitted_models_file)
     }
 }
 array.out <- posteriors
@@ -90,4 +90,4 @@ table.out <- do.call(rbind, posteriors)
 save(fits, posteriors, file=fitted_models_file)
 # Output if not running under Anduril
 if(exists("posteriors_file"))
-    write.table(table.out, file=posteriors_uni_file, sep="\t", row.names=FALSE, )
+    write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE, )
