@@ -17,7 +17,7 @@ rownames(mirna) <- table3[,1]
 model_file <- param1
 n_iter <- as.numeric(param2)
 n_chains <- as.numeric(param3)
-multicore <- as.boolean(param4)
+multicore <- as.logical(param4)
 gene_names <- unlist(strsplit(param5, ","))
 mirna_names <- unlist(strsplit(param6, ","))
 # Output files

@@ -78,7 +78,7 @@ testGenes = "GSK3B"//,BRAF,PTK2"
 testMirnas = "hsa-miR-638,hsa-let-7d,hsa-miR-193a-3p"
 
 regressionUni = REvaluate(
-	script = regressionScript,
+	script = regressionScriptUni,
 	table1 = protein,
 	table2 = geneAgilent,
 	table3 = mirna,
@@ -89,7 +89,7 @@ regressionUni = REvaluate(
 	param5 = testGenes,
 	param6 = testMirnas)
 regressionMulti = REvaluate(
-	script = regressionScript,
+	script = regressionScriptMulti,
 	table1 = protein,
 	table2 = geneAgilent,
 	table3 = mirna,

@@ -17,7 +17,7 @@ rownames(mirna) <- table3[,1]
 model_file <- param1
 n_iter <- as.numeric(param2)
 n_chains <- as.numeric(param3)
-multicore <- as.boolean(param4)
+multicore <- as.logical(param4)
 gene_names <- unlist(strsplit(param5, ","))
 mirna_names <- unlist(strsplit(param6, ","))
 # Output files
@@ -76,7 +76,7 @@ for(g in gene_names) {
         posteriors <- c(posteriors, list(post))
         names(posteriors)[length(posteriors)] <- paste(g,m,"uni",sep="_")
 
-        save(fits, fitted_models_file)
+        save(fits, file=fitted_models_file)
     }
 }
 array.out <- posteriors
