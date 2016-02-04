@@ -14,8 +14,9 @@ startFromRaw        = false
 corMethod           = "spearman"
 corMinCompleteCases = 20
 corPThresh          = 1
-N_ITER              = 1000
+N_ITER              = 200
 N_CHAINS            = 4
+MULTICORE           = "true"
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
@@ -70,12 +71,13 @@ geneAgilent = IDConvert(
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
-regressionScript = INPUT(path=CODEDIR+"regression_analysis.R")
+regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis.R")
+regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
 testGenes = "GSK3B"//,BRAF,PTK2"
 testMirnas = "hsa-miR-638,hsa-let-7d,hsa-miR-193a-3p"
 
-regression = REvaluate(
+regressionUni = REvaluate(
 	script = regressionScript,
 	table1 = protein,
 	table2 = geneAgilent,
@@ -83,5 +85,17 @@ regression = REvaluate(
 	param1 = regressionModelFile,
 	param2 = N_ITER,
 	param3 = N_CHAINS,
-	param4 = testGenes,
-	param5 = testMirnas)
+	param4 = MULTICORE,
+	param5 = testGenes,
+	param6 = testMirnas)
+regressionMulti = REvaluate(
+	script = regressionScript,
+	table1 = protein,
+	table2 = geneAgilent,
+	table3 = mirna,
+	param1 = regressionModelFile,
+	param2 = N_ITER,
+	param3 = N_CHAINS,
+	param4 = MULTICORE,
+	param5 = testGenes,
+	param6 = testMirnas)

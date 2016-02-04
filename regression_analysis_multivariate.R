@@ -3,8 +3,6 @@
 
 # necessary libraries
 library(rstan)
-rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
 
 
 ### For running under Anduril, use this block
@@ -42,8 +40,8 @@ table.out <- data.frame()
 # n_chains <- 4
 # multicore <- true
 # # Output files
-# fitted_models_file <- "fitted_models_univariate.rda"
-# posteriors_file <- "posteriors_univariate.csv"
+# fitted_models_file <- "fitted_models_multivariate.rda"
+# posteriors_file <- "posteriors_multivariate.csv"
 
 
 if(length(gene_names) < 1)
@@ -57,27 +55,26 @@ if(multicore) {
 
 
 
-### UNIVARIATE REGRESSION ####
+### MULTIVARIATE REGRESSION ####
 
 samples <- colnames(prot)
 fits <- list()
 posteriors <- list()
-fit <- NA
 
-# Run through all (given) miRNA-protein pairs
+# Run through all (given) proteins
 for(g in gene_names) {
-    for(m in mirna_names){
-        datalist <- list(N=length(samples), J=1, P=as.numeric((prot[g,samples])), M=as.matrix(mirna[m,samples]), G=as.numeric(gene[g,samples]))
-        fit <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit, model_name=paste(g,m,"uni",sep="_"))
+    datalist <- list(N=length(samples), J=nrow(mirna), P=as.numeric((prot[g,samples])), M=t(as.matrix(mirna[,samples])), G=as.numeric(gene[g,samples]))
+    fit <- stan(file=model_file, data=datalist, model_name=paste(g,"multi",sep="_"), iter=n_iter, chains=n_chains)
 
-        fits <- c(fits, list(fit))
-        names(fits)[length(fits)] <- paste(g,m,"uni",sep="_")
+    fits <- c(fits, list(fit))
+    names(fits)[length(fits)] <- paste(g,"multi",sep="_")
 
-        post <- summary(fit)$summary
-        post <- as.data.frame(cbind(Gene=rep(g,nrow(post)), miRNA=rep(m,nrow(post)), coef=rownames(post), post))
-        posteriors <- c(posteriors, list(post))
-        names(posteriors)[length(posteriors)] <- paste(g,m,"uni",sep="_")
-    }
+    post <- summary(fit)$summary
+    post <- as.data.frame(cbind(Gene=rep(g,nrow(post)), miRNA=c(rownames(mirna),rep(NA,nrow(post)-nrow(mirna))), coef=rownames(post), post))
+    posteriors <- c(posteriors, list(post))
+    names(posteriors)[length(posteriors)] <- paste(g,"multi",sep="_")
+    
+    save(fits, file=fitted_models_file)
 }
 array.out <- posteriors
 table.out <- do.call(rbind, posteriors)
@@ -87,7 +84,7 @@ table.out <- do.call(rbind, posteriors)
 ### OUTPUT #####
 
 # Save model lists
-save(fits, posteriors, file=fitted_models_file)
+save(fits.uni, fits.multi, posteriors.multi, posteriors, file=fitted_models_file)
 # Output if not running under Anduril
 if(exists("posteriors_file"))
-    write.table(table.out, file=posteriors_uni_file, sep="\t", row.names=FALSE, )
+    write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE, )
