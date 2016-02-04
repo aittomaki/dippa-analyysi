@@ -14,6 +14,8 @@ startFromRaw        = false
 corMethod           = "spearman"
 corMinCompleteCases = 20
 corPThresh          = 1
+N_ITER              = 1000
+N_CHAINS            = 4
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
@@ -54,6 +56,7 @@ geneAnnotBiomart = BiomartAnnotator(
 	filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
 	attributes = "external_gene_name,ensembl_gene_id",
 	martHost = "www.ensembl.org",
+	@execute = "once",
 	@enabled = false)
 geneAgilent = IDConvert(
 	csv = mrna,
@@ -69,7 +72,7 @@ geneAgilent = IDConvert(
 //==========================================================
 regressionScript = INPUT(path=CODEDIR+"regression_analysis.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
-testGenes = "BRAF,GSK3B,PTK2"
+testGenes = "GSK3B"//,BRAF,PTK2"
 testMirnas = "hsa-miR-638,hsa-let-7d,hsa-miR-193a-3p"
 
 regression = REvaluate(
@@ -78,5 +81,7 @@ regression = REvaluate(
 	table2 = geneAgilent,
 	table3 = mirna,
 	param1 = regressionModelFile,
-	param2 = testGenes,
-	param3 = testMirnas)
+	param2 = N_ITER,
+	param3 = N_CHAINS,
+	param4 = testGenes,
+	param5 = testMirnas)

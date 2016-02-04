@@ -6,11 +6,11 @@ data {
   vector[N] G; // mRNA expression
 }
 parameters {
-  real alpha; // intercept
   vector[J] beta; // microRNA coefs
   real gamma; // mRNA coef
-  real<lower=0> sigma;
+  real alpha; // intercept
+  real<lower=0> sigma; // error term of regression
 }
 model {
-  P ~ normal(alpha + M * beta + gamma * G, sigma);
+  P ~ normal(M * beta + gamma * G + alpha, sigma);
 }
