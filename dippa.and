@@ -71,7 +71,7 @@ geneAgilent = IDConvert(
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
-regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis.R")
+regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis_univariate.R")
 regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
 testGenes = "GSK3B"//,BRAF,PTK2"
