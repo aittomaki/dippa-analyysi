@@ -29,12 +29,12 @@ table.out <- data.frame()
 ### For running outside Anduril, use this block
 # # Load data
 # DATADIR <- "~/wrk/dippa-data/"
-# prot <- read.delim(file.path(DATADIR,"protein.csv"), row.names=1)
-# gene <- read.delim(file.path(DATADIR,"mrna_genes.csv"), row.names=1)
-# mirna <- read.delim(file.path(DATADIR,"mirna.csv"), row.names=1)
+# prot <- as.matrix(read.delim(file.path(DATADIR,"protein.csv"), row.names=1))
+# gene <- as.matrix(read.delim(file.path(DATADIR,"mrna_genes.csv"), row.names=1))
+# mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna.csv"), row.names=1))
 # # Parameters
 # model_file <- "simple_priors.stan"
-# gene_names <- c("BRAF","SYK")
+# gene_names <- c("GSK3B","BRAF","SYK")
 # mirna_names <- c("hsa-miR-638","hsa-miR-671-5p","hsa-miR-107")
 # n_iter <- 1000
 # n_chains <- 4
@@ -57,14 +57,14 @@ if(multicore) {
 
 ### MULTIVARIATE REGRESSION ####
 
-samples <- colnames(prot)
+samples <- rownames(prot)
 fits <- list()
 posteriors <- list()
 fit <- NA
 
 # Run through all (given) proteins
 for(g in gene_names) {
-    datalist <- list(N=length(samples), J=nrow(mirna), P=as.numeric((prot[g,samples])), M=t(as.matrix(mirna[,samples])), G=as.numeric(gene[g,samples]))
+    datalist <- list(N=length(samples), J=ncol(mirna), P=as.numeric(prot[samples,g]), M=as.matrix(mirna[samples,]), G=as.numeric(gene[samples,g]))
     fit <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit, model_name=paste(g,"multi",sep="_"))
 
     fits <- c(fits, list(fit))
@@ -88,4 +88,4 @@ table.out <- do.call(rbind, posteriors)
 save(fits, posteriors, file=fitted_models_file)
 # Output if not running under Anduril
 if(exists("posteriors_file"))
-    write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE, )
+    write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE)

@@ -14,7 +14,8 @@ startFromRaw        = false
 corMethod           = "spearman"
 corMinCompleteCases = 20
 corPThresh          = 1
-N_ITER              = 200
+SIGMA               = 0.1
+N_ITER              = 1000
 N_CHAINS            = 4
 MULTICORE           = "true"
 // Input data
@@ -35,53 +36,70 @@ mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
 // antibody column
 proteinAnnotExpand = INPUT(path=CODEDIR+"protein_expandannot.csv")
 proteinExpand = IDConvert(
-	csv = proteinMessy,
-	conversionTable = proteinAnnotExpand,
-	sourceColumn = "Gene",
-	keyColumn = "GeneJoined",
-	conversionColumn = "GeneExpanded",
-	splitConverted = true,
+	csv                 = proteinMessy,
+	conversionTable     = proteinAnnotExpand,
+	sourceColumn        = "Gene",
+	keyColumn           = "GeneJoined",
+	conversionColumn    = "GeneExpanded",
+	splitConverted      = true,
 	originalWhenMissing = true)
 proteinRename = SearchReplace(
-	file = proteinExpand,
-	key00 = "(OSL2.)-(.{6})",
+	file    = proteinExpand,
+	key00   = "(OSL2.)-(.{6})",
 	value00 = "$1.$2")
 protein = CSVFilter(
-	csv = proteinRename,
+	csv            = proteinRename,
 	includeColumns = "Antibody",
-	negate = true)
+	negate         = true)
 
 // Convert mrna probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
-	filter = mrnaAnnotAgilent,
+	filter      = mrnaAnnotAgilent,
 	filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
-	attributes = "external_gene_name,ensembl_gene_id",
-	martHost = "www.ensembl.org",
-	@execute = "once",
-	@enabled = false)
+	attributes  = "external_gene_name,ensembl_gene_id",
+	martHost    = "www.ensembl.org",
+	@execute    = "once",
+	@enabled    = false)
 geneAgilent = IDConvert(
-	csv = mrna,
-	conversionTable = mrnaAnnotAgilent,
+	csv              = mrna,
+	conversionTable  = mrnaAnnotAgilent,
 	conversionColumn = "GENE_SYMBOL",
-	unique = true,
-	collapseNumeric = "mean",
-	dropMissing = true)
+	unique           = true,
+	collapseNumeric  = "mean",
+	dropMissing      = true)
+// Filter genes down to ones in protein data
+gene = CSVFilter(
+	csv       = geneAgilent,
+	auxiliary = protein)
 
 
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
+scalingScript = INPUT(path=CODEDIR+"scale_regression_data.R")
 regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis_univariate.R")
 regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
-testGenes = "GSK3B"//,BRAF,PTK2"
-testMirnas = "hsa-miR-638,hsa-let-7d,hsa-miR-193a-3p"
+testGenes = "GSK3B"//BRAF"//,PTK2"
+testMirnas = "hsa.miR.638,hsa.let.7d,hsa.miR.193a.3p"
 
+proteinScaled = REvaluate(
+	script = scalingScript,
+	table1 = protein,
+	param1 = SIGMA)
+geneScaled = REvaluate(
+	script = scalingScript,
+	table1 = gene,
+	param1 = SIGMA)
+mirnaScaled = REvaluate(
+	script = scalingScript,
+	table1 = mirna,
+	param1 = SIGMA)
 regressionUni = REvaluate(
 	script = regressionScriptUni,
-	table1 = protein,
-	table2 = geneAgilent,
-	table3 = mirna,
+	table1 = proteinScaled.table,
+	table2 = geneScaled.table,
+	table3 = mirnaScaled.table,
 	param1 = regressionModelFile,
 	param2 = N_ITER,
 	param3 = N_CHAINS,
@@ -90,12 +108,64 @@ regressionUni = REvaluate(
 	param6 = testMirnas)
 regressionMulti = REvaluate(
 	script = regressionScriptMulti,
-	table1 = protein,
-	table2 = geneAgilent,
-	table3 = mirna,
+	table1 = proteinScaled.table,
+	table2 = geneScaled.table,
+	table3 = mirnaScaled.table,
 	param1 = regressionModelFile,
 	param2 = N_ITER,
 	param3 = N_CHAINS,
 	param4 = MULTICORE,
 	param5 = testGenes,
-	param6 = testMirnas)
+	param6 = testMirnas,
+	@bind  = regressionUni)
+
+proteinDist = Plot2D(x=protein, y=protein, plotType="l",
+    imageType="single", title="protein log2",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+proteinDistLin = Plot2D(x=protein, y=protein, plotType="l",
+    imageType="single", title="protein",
+    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+proteinDistScaled = Plot2D(x=proteinScaled.table, y=proteinScaled.table, plotType="l",
+    imageType="single", title="protein log2 + scaled",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+geneDist = Plot2D(x=gene, y=gene, plotType="l",
+    imageType="single", title="gene log2",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+geneDistLin = Plot2D(x=gene, y=gene, plotType="l",
+    imageType="single", title="gene",
+    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+geneDistScaled = Plot2D(x=geneScaled.table, y=geneScaled.table, plotType="l",
+    imageType="single", title="gene log2 + scaled",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+mirnaDist = Plot2D(x=mirna, y=mirna, plotType="l",
+    imageType="single", title="miRNA log2",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+mirnaDistLin = Plot2D(x=mirna, y=mirna, plotType="l",
+    imageType="single", title="miRNA",
+    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+mirnaDistScaled = Plot2D(x=mirnaScaled.table, y=mirnaScaled.table, plotType="l",
+    imageType="single", title="miRNA log2 + scaled",
+    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
+    sectionTitle="")
+distributions = LatexCombiner(
+	proteinDist,proteinDistLin,proteinDistScaled,
+	geneDist,geneDistLin,geneDistScaled,
+	mirnaDist,mirnaDistLin,mirnaDistScaled)
+distGallery = HTMLImages(force images = distributions)
