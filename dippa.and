@@ -11,13 +11,15 @@
 //==========================================================
 // Parameters
 startFromRaw        = false
+// Correlation params
 corMethod           = "spearman"
 corMinCompleteCases = 20
 corPThresh          = 1
+// Bayes simulation params
 SIGMA               = 0.1
 N_ITER              = 1000
 N_CHAINS            = 4
-MULTICORE           = "true"
+MULTICORE           = "true" //should Stan run in multicore mode
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
@@ -32,8 +34,7 @@ mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
 // PREPROCESS
 //==========================================================
 
-// Expand a AKT1/2/3 type proteins, rename samples (- to .) and remove
-// antibody column
+// Expand a AKT1/2/3 type proteins
 proteinAnnotExpand = INPUT(path=CODEDIR+"protein_expandannot.csv")
 proteinExpand = IDConvert(
 	csv                 = proteinMessy,
@@ -43,16 +44,26 @@ proteinExpand = IDConvert(
 	conversionColumn    = "GeneExpanded",
 	splitConverted      = true,
 	originalWhenMissing = true)
+// Rename samples (- to . as R doesnt like - in col names)
 proteinRename = SearchReplace(
 	file    = proteinExpand,
 	key00   = "(OSL2.)-(.{6})",
 	value00 = "$1.$2")
+// Remove Antibody column (leaves Gene (name))
 protein = CSVFilter(
 	csv            = proteinRename,
 	includeColumns = "Antibody",
 	negate         = true)
+// Transpose to have variables as columns
+proteinT = MatrixTranspose(
+	matrix  = protein,
+	rowName = "SampleID")
+// Normalize for regression
+proteinNorm = LinearNormalizer(
+	matrix = proteinT,
+	method = "z")
 
-// Convert mrna probe accession IDs to gene names
+// Convert mRNA probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
 	filter      = mrnaAnnotAgilent,
 	filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
@@ -71,30 +82,76 @@ geneAgilent = IDConvert(
 gene = CSVFilter(
 	csv       = geneAgilent,
 	auxiliary = protein)
+// Transpose and normalize
+geneT = MatrixTranspose(
+	matrix  = gene,
+	rowName = "SampleID")
+geneNorm = LinearNormalizer(
+	matrix = geneT,
+	method = "z")
+
+// Transpose and normalize miRNA data
+mirnaT = MatrixTranspose(
+	matrix  = mirna,
+	rowName = "SampleID")
+mirnaNorm = LinearNormalizer(
+	matrix = mirnaT,
+	method = "z")
+
+// Density plots of normalized data
+proteinDist = Plot2D(x=proteinNorm, y=proteinNorm, plotType="l",
+	imageType="single", title="Protein z-normalized",
+	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+	width="10",height="10",dpCm="48")
+geneDist = Plot2D(x=geneNorm, y=geneNorm, plotType="l",
+	imageType="single", title="gene z-normalized",
+	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+	width="10",height="10",dpCm="48")
+mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
+	imageType="single", title="mirna z-normalized",
+	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+	width="10",height="10",dpCm="48")
+
+
+// [0,1] scaling and density plots (dont use these!)
+scalingScript = INPUT(path=CODEDIR+"scale_regression_data.R")
+proteinScaled = REvaluate(
+	script = scalingScript,
+	table1 = protein,
+	param1 = SIGMA,
+	param2 = "protein")
+geneScaled = REvaluate(
+	script = scalingScript,
+	table1 = gene,
+	param1 = SIGMA,
+	param2 = "gene")
+mirnaScaled = REvaluate(
+	script = scalingScript,
+	table1 = mirna,
+	param1 = SIGMA,
+	param2 = "miRNA")
+
+// Gallery of density plots
+distributions = LatexCombiner(
+	geneDist, proteinDist, mirnaDist,
+	geneScaled.document, proteinScaled.document, mirnaScaled.document)
+distGallery = ImageGallery(force folderRoot = distributions)
+// Dens plots of R-normalized and Anduril-normalized vars seem to match! Yay!
+
 
 
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
-scalingScript = INPUT(path=CODEDIR+"scale_regression_data.R")
 regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis_univariate.R")
 regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
 regressionModelFile = CODEDIR+"simple_priors.stan"
 testGenes = "GSK3B"//BRAF"//,PTK2"
 testMirnas = "hsa.miR.638,hsa.let.7d,hsa.miR.193a.3p"
 
-proteinScaled = REvaluate(
-	script = scalingScript,
-	table1 = protein,
-	param1 = SIGMA)
-geneScaled = REvaluate(
-	script = scalingScript,
-	table1 = gene,
-	param1 = SIGMA)
-mirnaScaled = REvaluate(
-	script = scalingScript,
-	table1 = mirna,
-	param1 = SIGMA)
 regressionUni = REvaluate(
 	script = regressionScriptUni,
 	table1 = proteinScaled.table,
@@ -105,7 +162,8 @@ regressionUni = REvaluate(
 	param3 = N_CHAINS,
 	param4 = MULTICORE,
 	param5 = testGenes,
-	param6 = testMirnas)
+	param6 = testMirnas,
+	@enabled = false)
 regressionMulti = REvaluate(
 	script = regressionScriptMulti,
 	table1 = proteinScaled.table,
@@ -117,55 +175,5 @@ regressionMulti = REvaluate(
 	param4 = MULTICORE,
 	param5 = testGenes,
 	param6 = testMirnas,
-	@bind  = regressionUni)
-
-proteinDist = Plot2D(x=protein, y=protein, plotType="l",
-    imageType="single", title="protein log2",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-proteinDistLin = Plot2D(x=protein, y=protein, plotType="l",
-    imageType="single", title="protein",
-    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-proteinDistScaled = Plot2D(x=proteinScaled.table, y=proteinScaled.table, plotType="l",
-    imageType="single", title="protein log2 + scaled",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-geneDist = Plot2D(x=gene, y=gene, plotType="l",
-    imageType="single", title="gene log2",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-geneDistLin = Plot2D(x=gene, y=gene, plotType="l",
-    imageType="single", title="gene",
-    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-geneDistScaled = Plot2D(x=geneScaled.table, y=geneScaled.table, plotType="l",
-    imageType="single", title="gene log2 + scaled",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-mirnaDist = Plot2D(x=mirna, y=mirna, plotType="l",
-    imageType="single", title="miRNA log2",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-mirnaDistLin = Plot2D(x=mirna, y=mirna, plotType="l",
-    imageType="single", title="miRNA",
-    xTransformation="sapply(x, function(x) density(t(2^x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(2^y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-mirnaDistScaled = Plot2D(x=mirnaScaled.table, y=mirnaScaled.table, plotType="l",
-    imageType="single", title="miRNA log2 + scaled",
-    xTransformation="sapply(x, function(x) density(t(x),n=length(x), na.rm=T)$x)",
-    yTransformation="sapply(y, function(y) density(t(y),n=length(y), na.rm=T)$y)",
-    sectionTitle="")
-distributions = LatexCombiner(
-	proteinDist,proteinDistLin,proteinDistScaled,
-	geneDist,geneDistLin,geneDistScaled,
-	mirnaDist,mirnaDistLin,mirnaDistScaled)
-distGallery = HTMLImages(force images = distributions)
+	@bind  = regressionUni,
+	@enabled = false)
