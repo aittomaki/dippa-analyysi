@@ -17,3 +17,5 @@ vignettes/*.pdf
 # Anduril output
 execute
 simple_priors.rda
+shrinkage_prior.rda
+

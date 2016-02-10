@@ -33,9 +33,9 @@ table.out <- data.frame()
 # gene <- as.matrix(read.delim(file.path(DATADIR,"mrna_genes.csv"), row.names=1))
 # mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna.csv"), row.names=1))
 # # Parameters
-# model_file <- "simple_priors.stan"
+# model_file <- "shrinkage_prior.stan"
 # gene_names <- c("BRAF","SYK")
-# mirna_names <- c("hsa-miR-638","hsa-miR-671-5p","hsa-miR-107")
+# mirna_names <- c("hsa.miR.638","hsa.miR.671.5p","hsa.miR.107")
 # n_iter <- 1000
 # n_chains <- 4
 # multicore <- true
@@ -44,10 +44,13 @@ table.out <- data.frame()
 # posteriors_file <- "posteriors_univariate.csv"
 
 
-if(length(gene_names) < 1)
-    gene_names <- rownames(gene)
-if(length(mirna_names) < 1)
-    mirna_names <- rownames(mirna)
+# Check that gene and mirna names are defined
+if(!exists("gene_names") || length(gene_names) < 1)
+    gene_names <- colnames(gene)
+if(!exists("mirna_names") || length(mirna_names) < 1)
+    mirna_names <- colnames(mirna)
+
+# Set rstan multicore options if wished
 if(multicore) {
     rstan_options(auto_write = TRUE)
     options(mc.cores = parallel::detectCores())
@@ -65,7 +68,7 @@ fit <- NA
 # Run through all (given) miRNA-protein pairs
 for(g in gene_names) {
     for(m in mirna_names){
-        datalist <- list(N=length(samples), J=1, P=as.numeric(prot[samples,g]), M=as.matrix(mirna[samples,m]), G=as.numeric(gene[samples,g]))
+        datalist <- list(nu=3, n=length(samples), d=1, P=prot[samples,g], M=as.matrix(mirna[samples,m]), G=gene[samples,g])
         fit <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit, model_name=paste(g,m,"uni",sep="_"))
 
         fits <- c(fits, list(fit))
@@ -76,18 +79,34 @@ for(g in gene_names) {
         posteriors <- c(posteriors, list(post))
         names(posteriors)[length(posteriors)] <- paste(g,m,"uni",sep="_")
 
+        # Save results so far (in case of crash)
         save(fits, file=fitted_models_file)
+        
+        # Plot the simulated posteriors for parameters
+        plot.file <- file.path(document.dir,sprintf('%s-%s-%s-posteriors.png',instance.name,g,m))
+        png(plot.file)
+        print(plot(fit))
+        dev.off()
+
+        # Plot trace plot
+        plot.file <- file.path(document.dir,sprintf('%s-%s-%s-trace.png',instance.name,g,m))
+        png(plot.file)
+        print(traceplot(fit))
+        dev.off()
     }
 }
-array.out <- posteriors
-table.out <- do.call(rbind, posteriors)
 
 
 
 ### OUTPUT #####
+
+array.out <- posteriors
+table.out <- do.call(rbind, posteriors)
+document.out <- ""
 
 # Save model lists
 save(fits, posteriors, file=fitted_models_file)
 # Output if not running under Anduril
 if(exists("posteriors_file"))
     write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE)
+
