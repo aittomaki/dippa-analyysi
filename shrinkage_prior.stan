@@ -1,6 +1,7 @@
 
-/* shrinkage_prior.stan
- * Stan model for Viljami Aittomaki's master's thesis.
+/** shrinkage_prior.stan
+ * Stan model with hierarchical shrinkage priors
+ * for master's thesis.
  * Modified from lg_t.stan by Juho Piiroinen.
  */
 
@@ -57,7 +58,7 @@ transformed parameters {
 model {
 	
 	// observation model
-	y ~ normal(w0 + G*wg + M*w, sigma);
+	P ~ normal(M*w + G*wg + w0, sigma);
 	
 	// half t-priors for lambdas (nu = 1 corresponds to horseshoe)
 	z ~ normal(0, 1);
