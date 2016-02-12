@@ -109,4 +109,3 @@ save(fits, posteriors, file=fitted_models_file)
 # Output if not running under Anduril
 if(exists("posteriors_file"))
     write.table(table.out, file=posteriors_file, sep="\t", row.names=FALSE)
-

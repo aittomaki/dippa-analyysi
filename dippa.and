@@ -177,4 +177,4 @@ regressionMulti = REvaluate(
 	param5 = testGenes,
 	param6 = testMirnas,
 	@bind  = regressionUni,
-	@enabled = false)
+	@enabled = true)

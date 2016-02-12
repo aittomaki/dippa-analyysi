@@ -19,7 +19,6 @@ n_iter <- as.numeric(param2)
 n_chains <- as.numeric(param3)
 multicore <- as.logical(param4)
 gene_names <- unlist(strsplit(param5, ","))
-mirna_names <- unlist(strsplit(param6, ","))
 # Output files
 fitted_models_file <- get.output(cf,'optOut1')
 rm(optOut1)
@@ -28,29 +27,31 @@ table.out <- data.frame()
 
 ### For running outside Anduril, use this block
 # # Load data
-# DATADIR <- "~/wrk/dippa-data/"
-# prot <- as.matrix(read.delim(file.path(DATADIR,"protein.csv"), row.names=1))
-# gene <- as.matrix(read.delim(file.path(DATADIR,"mrna_genes.csv"), row.names=1))
-# mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna.csv"), row.names=1))
+# DATADIR <- "./data/"
+# prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
+# gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
+# mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
 # # Parameters
-# model_file <- "simple_priors.stan"
-# gene_names <- c("GSK3B","BRAF","SYK")
-# mirna_names <- c("hsa-miR-638","hsa-miR-671-5p","hsa-miR-107")
+# jobi <- commandArgs(TRUE)[1]
+# model_file <- "shrinkage_prior.stan"
+# gene_names <- colnames(prot)[jobi]
 # n_iter <- 1000
 # n_chains <- 4
-# multicore <- true
+# multicore <- FALSE
 # # Output files
 # fitted_models_file <- "fitted_models_multivariate.rda"
 # posteriors_file <- "posteriors_multivariate.csv"
 
 
-if(length(gene_names) < 1)
-    gene_names <- rownames(gene)
-if(length(mirna_names) < 1)
-    mirna_names <- rownames(mirna)
+# Check that gene and mirna names are defined
+if(!exists("gene_names") || length(gene_names) < 1)
+    gene_names <- colnames(gene)
+
+
+# Set rstan multicore options if wished
 if(multicore) {
     rstan_options(auto_write = TRUE)
-    options(mc.cores = parallel::detectCores())
+    options(mc.cores = n_chains)
 }
 
 
@@ -64,7 +65,7 @@ fit <- NA
 
 # Run through all (given) proteins
 for(g in gene_names) {
-    datalist <- list(N=length(samples), J=ncol(mirna), P=as.numeric(prot[samples,g]), M=as.matrix(mirna[samples,]), G=as.numeric(gene[samples,g]))
+    datalist <- list(nu=3, n=length(samples), d=ncol(mirna), P=prot[samples,g], M=mirna[samples,], G=gene[samples,g])
     fit <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit, model_name=paste(g,"multi",sep="_"))
 
     fits <- c(fits, list(fit))
@@ -75,7 +76,20 @@ for(g in gene_names) {
     posteriors <- c(posteriors, list(post))
     names(posteriors)[length(posteriors)] <- paste(g,"multi",sep="_")
 
+    # Save results so far (in case of crash)
     save(fits, file=fitted_models_file)
+    
+    # Plot the simulated posteriors for parameters
+    plot.file <- file.path(document.dir,sprintf('%s-%s-posteriors.png',instance.name,g))
+    png(plot.file)
+    print(plot(fit))
+    dev.off()
+
+    # Plot trace plot
+    plot.file <- file.path(document.dir,sprintf('%s-%s-trace.png',instance.name,g))
+    png(plot.file)
+    print(traceplot(fit))
+    dev.off()
 }
 array.out <- posteriors
 table.out <- do.call(rbind, posteriors)
@@ -83,6 +97,10 @@ table.out <- do.call(rbind, posteriors)
 
 
 ### OUTPUT #####
+
+array.out <- posteriors
+table.out <- do.call(rbind, posteriors)
+document.out <- ""
 
 # Save model lists
 save(fits, posteriors, file=fitted_models_file)
