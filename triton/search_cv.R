@@ -29,7 +29,7 @@ G <- as.numeric(gene[samples,g])
 M <- mirna[samples,]
 
 # Parameters
-model_file <- file.path(FILEDIR,"shrinkage_prior.stan")
+model_file <- file.path(FILEDIR,"stan","shrinkage_prior.stan")
 nu <- 2.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4

@@ -21,7 +21,7 @@ mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.nam
 
 # Parameters
 g <- colnames(prot)[jobi] # name of the gene
-model_file <- "/triton/work/jaittoma/dippa-analyysi/shrinkage_prior.stan"
+model_file <- "/triton/work/jaittoma/dippa-analyysi/stan/shrinkage_prior.stan"
 nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
