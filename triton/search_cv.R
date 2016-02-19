@@ -79,6 +79,12 @@ for (i in 1:cvk) {
 	# make predictions for the observations in the validation set
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
 	yval <- P[ival]
+	# calculate mse and lpd for full model with validation set
+	ypredfull <- rowMeans(xval %*% w)
+	msefull[i] <-  mean((yval-ypredfull)^2)
+	pdfull <- dnorm(yval, xval %*% w, sqrt(sigma2))
+	lpdfull[i] <- mean(log(rowMeans(pdfull)))
+	# then for each submodel along the selection path
 	for (k in 1:100) {
 
 		# projected parameters
@@ -94,12 +100,7 @@ for (i in 1:cvk) {
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[i,k] <- mean(log(rowMeans(pd)))
 	}
-	# calculate mse and lpd for full model with validation set
-	ypredfull <- rowMeans(xval %*% w)
-	msefull[i] <-  mean((yval-ypredfull)^2)
-	pdfull <- dnorm(yval, xval %*% w, sqrt(sigma2))
-	lpdfull[i] <- mean(log(rowMeans(pdfull)))
 }
 
 # Save results
-save(lpd, mse, fit, spath, file=out_file)
+save(lpd, mse, lpdfull, msefull, fit, spath, file=out_file)
