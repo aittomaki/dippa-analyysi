@@ -4,12 +4,12 @@
 # of the found models on the validation data.
 #
 
-FILEDIR <- "/triton/work/jaittoma/dippa"
+FILEDIR <- "/triton/work/jaittoma/dippa-analyysi"
 
 # necessary libraries
 require(rstan)
 sessionInfo()
-source(file.path(FILEDIR,"projection.R"))
+source(file.path(FILEDIR,"triton","projection.R"))
 
 # which array ID are we at
 jobi <- as.integer(commandArgs(TRUE)[1])
@@ -35,7 +35,7 @@ n_iter <- 1000
 n_chains <- 4
 multicore <- FALSE
 # Output files
-OUTDIR <- file.path(FILEDIR,"output")
+OUTDIR <- file.path(FILEDIR,"execute")
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
 
 # Set rstan multicore options if wished
