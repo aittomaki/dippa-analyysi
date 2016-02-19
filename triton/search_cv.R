@@ -30,7 +30,7 @@ M <- mirna[samples,]
 
 # Parameters
 model_file <- file.path(FILEDIR,"shrinkage_prior.stan")
-nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
+nu <- 2.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
 multicore <- FALSE
@@ -45,10 +45,12 @@ if(multicore) {
 }
 
 
-# cross-validate the variable searching (10-fold)
+# cross-validate the variable searching
 cvk <- 5
 lpd <- matrix(0, cvk, 100) # lpd for each validation set
 mse <- matrix(0, cvk, 100) # mse for - '' -
+lpdfull <- rep(0, cvk)
+msefull <- rep(0, cvk)
 
 fit <- list(NA)
 spath <- list()
@@ -92,6 +94,11 @@ for (i in 1:cvk) {
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[i,k] <- mean(log(rowMeans(pd)))
 	}
+	# calculate mse and lpd for full model with validation set
+	ypredfull <- rowMeans(xval %*% w)
+	msefull[i] <-  mean((yval-ypredfull)^2)
+	pdfull <- dnorm(yval, xval %*% w, sqrt(sigma2))
+	lpdfull[i] <- mean(log(rowMeans(pdfull)))
 }
 
 # Save results
