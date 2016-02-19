@@ -16,10 +16,7 @@ Repon sisältö
   (prot ~ mrna + mirna), tässä yksi miRNA kerrallaan mallissa.
 - scale_regression_data.R -- DEPRECATED! NORMALISOINTI ANDURILILLAR-scripti datan 
   normalisointiin regressiota varten. Plottaa myös jakaumat muuttujista.
-- shrinkage_prior.stan -- Bayes-mallitiedosto Stanilla simulointia varten, tässä
-  mallissa HS-priori miRNAlle.
-- simple_priors.stan -- Bayes-mallitiedosto Stanilla simulointia varten. Tässä
-  tiedostossa yksinkertaisin mahdollinen malli (erityisesti priorit)-
+- stan -- hakemisto, jossa Stan-mallitiedostot
 - testing_data.R -- R-scipti, jossa lähinnä datan kanssa leikkimistä ja uuden
   (norjalaisten paperissa julkaistun) ja vanhan (norjalaisten mulle lähettämän)
   datan vertaamista
