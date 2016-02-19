@@ -23,3 +23,4 @@ Repon sisältö
 - testing_data.R -- R-scipti, jossa lähinnä datan kanssa leikkimistä ja uuden
   (norjalaisten paperissa julkaistun) ja vanhan (norjalaisten mulle lähettämän)
   datan vertaamista
+- triton -- hakemisto, jossa skriptit Stan-analyysien ajamiseksi Triton-klusterilla.
