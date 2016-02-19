@@ -14,8 +14,9 @@ vignettes/*.pdf
 .Rproj.user
 .RData
 
-# Anduril output
+# Analysis output
 execute
+log
 simple_priors.rda
 shrinkage_prior.rda
 
