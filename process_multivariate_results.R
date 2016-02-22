@@ -75,4 +75,4 @@ if(exists("param1"))
     table.out <- num.sigs
 
 # Cleanup
-rm(OUTFILE,RESULTDIR,PLOTDIR,sig,g,f,i,counts)
+rm(OUTFILE,RESULTDIR,PLOTDIR,sig,g,f,i,pars,counts,files,genes)
