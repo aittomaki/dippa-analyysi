@@ -164,7 +164,7 @@ regressionUni = REvaluate(
 	param4 = MULTICORE,
 	param5 = testGenes,
 	param6 = testMirnas,
-	@enabled = true)
+	@enabled = false)
 regressionMulti = REvaluate(
 	script = regressionScriptMulti,
 	table1 = proteinScaled.table,
@@ -177,4 +177,10 @@ regressionMulti = REvaluate(
 	param5 = testGenes,
 	param6 = testMirnas,
 	@bind  = regressionUni,
-	@enabled = true)
+	@enabled = false)
+
+// Process results from multivar full model regression on Triton
+resultScript = INPUT(path=CODEDIR+"process_multivariate_results.R")
+regressionResults = REvaluate(
+	script = resultScript,
+	param1 = "/home/viljami/output")
