@@ -8,8 +8,8 @@ FILEDIR <- "/triton/work/jaittoma/dippa-analyysi"
 
 # necessary libraries
 require(rstan)
-sessionInfo()
 source(file.path(FILEDIR,"triton","projection.R"))
+sessionInfo()
 
 # which array ID are we at
 jobi <- as.integer(commandArgs(TRUE)[1])
@@ -19,7 +19,7 @@ print("Loading data...")
 DATADIR <- "/triton/work/jaittoma/dippa-data"
 prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
 gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
-mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
+mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized_sample.csv"), row.names=1))
 d <- ncol(mirna)
 g <- colnames(prot)[jobi] # name of the gene
 samples <- rownames(prot)
@@ -33,6 +33,7 @@ model_file <- file.path(FILEDIR,"stan","shrinkage_prior.stan")
 nu <- 2.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
+n_proj_samples <- 200
 multicore <- FALSE
 # Output files
 OUTDIR <- file.path(FILEDIR,"execute")
@@ -46,7 +47,7 @@ if(multicore) {
 
 
 # cross-validate the variable searching
-cvk <- 5
+cvk <- 10
 lpd <- matrix(0, cvk, 100) # lpd for each validation set
 mse <- matrix(0, cvk, 100) # mse for - '' -
 lpdfull <- rep(0, cvk)
@@ -72,6 +73,10 @@ for (i in 1:cvk) {
 	# perform the variable selection
 	w <- rbind(e$w0, e$wg, t(e$w)) # stack the intercept and gene and miRNA weights
 	sigma2 <- e$sigma^2
+	# take a sample of the weight samples to improve projection speed
+	isamp <- sample.int(ncol(w),n_proj_samples)
+	w <- w[,isamp]
+	sigma2 <- sigma2[isamp]
 	# combine vector of ones, gene vector and miRNA matrix as input matrix
 	xtr <- cbind(rep(1,ntr), G[itr], M[itr,])
 	spath[[i]] <- lm_fprojsel(w, sigma2, xtr)

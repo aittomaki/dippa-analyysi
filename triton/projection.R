@@ -34,19 +34,23 @@ lm_proj <- function(w,sigma2,x,indproj) {
 
 
 lm_fprojsel <- function(w, sigma2, x) {
+	# max number of vars to select (all not solvable)
+	MAX_VARS <- 100
 
 	# forward variable selection using the projection
 	print("Starting variable selection...")
 	d = dim(x)[2]
-	chosen <- 1 # chosen variables, start from the model with the intercept only
+	chosen <- 1:2 # chosen variables, start from the model with the intercept and gene term
 	notchosen <- setdiff(1:d, chosen)
 	
 	# start from the model having only the intercept term
-	kl <- rep(0,100)
+	kl <- rep(0,MAX_VARS)
 	kl[1] <- lm_proj(w,sigma2,x,1)$kl
+	# add gene term
+	kl[2] <- lm_proj(w,sigma2,x,1:2)$kl
 
-	# start adding variables one at a time
-	for (k in 2:100) {
+	# start adding miRNA-variables one at a time
+	for (k in 3:MAX_VARS) {
 		if((k %% 20) == 0)
 			print(sprintf("%d vars included",k))
 		nleft <- length(notchosen)
