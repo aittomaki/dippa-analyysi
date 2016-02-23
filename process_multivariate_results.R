@@ -14,6 +14,7 @@ if(exists("param1")) { # Anduril
     OUTFILE <- "/home/viljami/output/sigs.rda"
 }
 
+posteriors <- list()
 sigs95 <- list()
 sigs80 <- list()
 sigs50 <- list()
@@ -30,7 +31,9 @@ for(i in 1:length(files)) {
     g <- genes[i]
 
     load(file.path(RESULTDIR,f))
-    sry <- summary(fit, probs=c(.025,.1,.25,.75,.9,.975))$summary
+    sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
+    ikeepvars <- grep("w|tau|lambda", rownames(sry))
+    posteriors[[g]] <- sry[ikeepvars,]
 
     sig <- which(sign(sry[,"2.5%"]) == sign(sry[,"97.5%"]))
     sig <- sig[grep("w",names(sig))]
@@ -55,22 +58,27 @@ for(i in 1:length(files)) {
     png(file=file.path(PLOTDIR, sprintf("%s-trace.png",g)))
     print(traceplot(fit, pars=pars))
     dev.off()
+
+    # cleanup
+    rm(fit, sry, ikeepvars)
 }
 
 # Make summary table
 num.sigs <- cbind(sapply(sigs95,length), sapply(sigs80,length), sapply(sigs50,length))
 colnames(num.sigs) <- c("95%","80%","50%")
-# Plot count polygons for different posterior intervals
+
+# Plot count of significant vars for different posterior intervals
 counts <- melt(num.sigs, varnames=c("gene","postInterval"))
 colnames(counts)[3] <- "n_significants"
-png(file=file.path(PLOTDIR, "signif_counts.png"))
+png(file=file.path(PLOTDIR, "signif_counts.png"), height=600, width=600)
 g <- ggplot(counts, aes(n_significants)) + geom_bar(aes(fill=postInterval)) + facet_grid(postInterval ~ .)
 print(g)
 dev.off()
 num.sigs <- cbind(postInterval=colnames(num.sigs), as.data.frame(t(apply(num.sigs, 2, summary))))
 #num.sigs <- data.frame(sigLevel=c("95%","80%","50%"),rbind(summary(sapply(sigs95,length)),summary(sapply(sigs80,length)),summary(sapply(sigs50,length))))
+
 # Save output
-save(num.sigs, sigs95, sigs80, sigs50, file=OUTFILE)
+save(posteriors, num.sigs, sigs95, sigs80, sigs50, file=OUTFILE)
 if(exists("param1"))
     table.out <- num.sigs
 
