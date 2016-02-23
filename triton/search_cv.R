@@ -4,11 +4,11 @@
 # of the found models on the validation data.
 #
 
-FILEDIR <- "/triton/work/jaittoma/dippa-analyysi"
+FILEDIR <- "/triton/work/jaittoma"
 
 # necessary libraries
 require(rstan)
-source(file.path(FILEDIR,"triton","projection.R"))
+source(file.path(FILEDIR,"dippa-analyysi","triton","projection.R"))
 sessionInfo()
 
 # which array ID are we at
@@ -16,7 +16,7 @@ jobi <- as.integer(commandArgs(TRUE)[1])
 
 # Load data
 print("Loading data...")
-DATADIR <- "/triton/work/jaittoma/dippa-data"
+DATADIR <- file.path(FILEDIR,"dippa-data")
 prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
 gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
 mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized_sample.csv"), row.names=1))
@@ -29,14 +29,14 @@ G <- as.numeric(gene[samples,g])
 M <- mirna[samples,]
 
 # Parameters
-model_file <- file.path(FILEDIR,"stan","shrinkage_prior.stan")
+model_file <- file.path(FILEDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
 nu <- 2.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
 n_proj_samples <- 200
 multicore <- FALSE
 # Output files
-OUTDIR <- file.path(FILEDIR,"execute")
+OUTDIR <- file.path(FILEDIR,"dippa-analyysi","execute")
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
 
 # Set rstan multicore options if wished
