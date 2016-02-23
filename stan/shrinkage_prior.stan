@@ -2,7 +2,7 @@
 /** shrinkage_prior.stan
  * Stan model with hierarchical shrinkage priors
  * for master's thesis.
- * Modified from lg_t.stan by Juho Piiroinen.
+ * Modified from lg_t.stan by Juho Piironen.
  */
 
 functions {
