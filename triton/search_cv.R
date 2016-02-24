@@ -30,11 +30,12 @@ M <- mirna[samples,]
 
 # Parameters
 model_file <- file.path(FILEDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
-nu <- 2.0 # parameter for hyperpriors (student-t degrees of freedom)
+nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
 n_proj_samples <- 200
 multicore <- FALSE
+MAX_VARS <- 50
 # Output files
 OUTDIR <- file.path(FILEDIR,"dippa-analyysi","execute")
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
@@ -48,8 +49,8 @@ if(multicore) {
 
 # cross-validate the variable searching
 cvk <- 10
-lpd <- matrix(0, cvk, 100) # lpd for each validation set
-mse <- matrix(0, cvk, 100) # mse for - '' -
+lpd <- matrix(0, cvk, MAX_VARS) # lpd for each validation set
+mse <- matrix(0, cvk, MAX_VARS) # mse for - '' -
 lpdfull <- rep(0, cvk)
 msefull <- rep(0, cvk)
 
@@ -79,7 +80,7 @@ for (i in 1:cvk) {
 	sigma2 <- sigma2[isamp]
 	# combine vector of ones, gene vector and miRNA matrix as input matrix
 	xtr <- cbind(rep(1,ntr), G[itr], M[itr,])
-	spath[[i]] <- lm_fprojsel(w, sigma2, xtr)
+	spath[[i]] <- lm_fprojsel(w, sigma2, xtr, MAX_VARS)
 	
 	# make predictions for the observations in the validation set
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
@@ -90,7 +91,7 @@ for (i in 1:cvk) {
 	pdfull <- dnorm(yval, xval %*% w, sqrt(sigma2))
 	lpdfull[i] <- mean(log(rowMeans(pdfull)))
 	# then for each submodel along the selection path
-	for (k in 1:100) {
+	for (k in 1:MAX_VARS) {
 
 		# projected parameters
 		submodel <- lm_proj(w, sigma2, xtr, spath[[i]]$chosen[1:k])

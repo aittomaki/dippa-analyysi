@@ -33,9 +33,7 @@ lm_proj <- function(w,sigma2,x,indproj) {
 }
 
 
-lm_fprojsel <- function(w, sigma2, x) {
-	# max number of vars to select (all not solvable)
-	MAX_VARS <- 100
+lm_fprojsel <- function(w, sigma2, x, MAX_VARS) {
 
 	# forward variable selection using the projection
 	print("Starting variable selection...")
