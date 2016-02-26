@@ -54,7 +54,8 @@ mse <- matrix(0, cvk, MAX_VARS) # mse for - '' -
 lpdfull <- rep(0, cvk)
 msefull <- rep(0, cvk)
 
-fit <- list(NA)
+fit <- NA
+posterior <- list()
 spath <- list()
 
 for (i in 1:cvk) {
@@ -68,8 +69,12 @@ for (i in 1:cvk) {
 	# fit the full model
 	print(sprintf("Fitting full model for fold %d/%d...",i,cvk))
 	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu)
-	fit[[i]] <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit[[1]])
-	e <- extract(fit[[i]])
+	fit <- stan(file=model_file, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+	e <- extract(fit)
+	# save posterior summary
+	sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
+	ikeepvars <- grep("w|tau|lambda", rownames(sry))
+	posterior[[i]] <- sry[ikeepvars,]
 	
 	# perform the variable selection
 	w <- rbind(e$w0, e$wg, t(e$w)) # stack the intercept and gene and miRNA weights
@@ -109,4 +114,4 @@ for (i in 1:cvk) {
 }
 
 # Save results
-save(lpd, mse, lpdfull, msefull, fit, spath, file=out_file)
+save(lpd, mse, lpdfull, msefull, spath, posterior, file=out_file)
