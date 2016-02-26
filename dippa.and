@@ -183,4 +183,10 @@ regressionMulti = REvaluate(
 resultScript = INPUT(path=CODEDIR+"process_multivariate_results.R")
 regressionResults = REvaluate(
 	script = resultScript,
-	param1 = "/home/viljami/output")
+	param1 = "/home/viljami/wrk/fullmodelresults/nu3")
+regressionResultsNu2 = REvaluate(
+	script = resultScript,
+	param1 = "/home/viljami/wrk/fullmodelresults/nu2")
+regressionResultsNu1 = REvaluate(
+	script = resultScript,
+	param1 = "/home/viljami/wrk/fullmodelresults/nu1")
