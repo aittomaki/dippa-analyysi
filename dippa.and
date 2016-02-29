@@ -25,6 +25,7 @@ CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
 proteinMessy = INPUT(path=DATADIR+"Oslo2-RPPA_data.csv")
 mirna = INPUT(path=DATADIR+"mirna.csv")
+falseMirnas = INPUT(path=DATADIR+"false_miRNA_ids.txt")
 mrna = INPUT(path=DATADIR+"mrna.csv")
 mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
 
@@ -90,9 +91,15 @@ geneNorm = LinearNormalizer(
 	matrix = geneT,
 	method = "z")
 
+// Drop miRNAs not in miRBase
+mirnaFilter = CSVFilter(
+	csv            = mirna,
+	auxiliary      = falseMirnas,
+	includeColumns = "",
+	negate         = true)
 // Transpose and normalize miRNA data
 mirnaT = MatrixTranspose(
-	matrix  = mirna,
+	matrix  = mirnaFilter,
 	rowName = "SampleID")
 mirnaNorm = LinearNormalizer(
 	matrix = mirnaT,
