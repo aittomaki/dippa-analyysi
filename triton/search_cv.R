@@ -19,7 +19,7 @@ print("Loading data...")
 DATADIR <- file.path(FILEDIR,"dippa-data")
 prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
 gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
-mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized_sample.csv"), row.names=1))
+mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
 d <- ncol(mirna)
 g <- colnames(prot)[jobi] # name of the gene
 samples <- rownames(prot)
