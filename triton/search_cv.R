@@ -43,8 +43,8 @@ out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
 
 # Set rstan multicore options if wished
 if(multicore) {
-    rstan_options(auto_write = TRUE)
-    options(mc.cores = n_chains)
+	rstan_options(auto_write = TRUE)
+	options(mc.cores = n_chains)
 }
 
 
@@ -118,34 +118,34 @@ for (i in 1:cvk) {
 save(lpd, mse, lpdfull, msefull, spath, posterior, file=out_file)
 
 if(do.plots) {
-    # Plot a bit
-    #png(file=file.path(OUTDIR,sprintf("CV-%d-%s.png",jobi,g)))
-    #layout(matrix(c(1,2)))
-    #plot(colMeans(lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))), xlab="nvar", ylab="dLPD")
-    #title("dLPD")
-    #abline(h=0);
-    #plot(colMeans(mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))), xlab="nvar", ylab="dMSE")
-    #title("dMSE")
-    #abline(h=0)
-    #dev.off()
+	# Plot a bit
+	#png(file=file.path(OUTDIR,sprintf("CV-%d-%s.png",jobi,g)))
+	#layout(matrix(c(1,2)))
+	#plot(colMeans(lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))), xlab="nvar", ylab="dLPD")
+	#title("dLPD")
+	#abline(h=0);
+	#plot(colMeans(mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))), xlab="nvar", ylab="dMSE")
+	#title("dMSE")
+	#abline(h=0)
+	#dev.off()
 
-    # Better plots
-    library(ggplot2)
-    library(reshape)
-    source("multiplot.R")
-    summaryfun <- "mean_se"
-    theme_set(theme_bw())
-    dlpd <- lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))
-    dlpd <- melt(dlpd, varnames=c("CV","nvar"))
-    p1 <- ggplot(dlpd, aes(nvar, value)) + geom_point(size=0.3)
-    p1 <- p1 + stat_summary(fun.data=summaryfun, color="red") + geom_abline(slope=0)
-    p1 <- p1 + labs(title=expression(Delta~LPD), x="variables", y=expression(Delta~LPD))
-    dmse <- mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))
-    dmse <- melt(dmse, varnames=c("CV","nvar"))
-    p2 <- ggplot(dmse, aes(nvar, value)) + geom_point(size=0.3)
-    p2 <- p2 + stat_summary(fun.data=summaryfun, color="red") + geom_abline(slope=0)
-    p2 <- p2 + labs(title=expression(Delta~MSE), x="variables", y=expression(Delta~MSE))
-    png(file=file.path(OUTDIR,sprintf("CV-%d-%s.png",jobi,g)),height=600,width=800)
-    print(multiplot(p1,p2))
-    dev.off()
+	# Better plots
+	library(ggplot2)
+	library(reshape)
+	source("multiplot.R")
+	summaryfun <- "mean_se"
+	theme_set(theme_bw())
+	dlpd <- lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))
+	dlpd <- melt(dlpd, varnames=c("CV","nvar"))
+	p1 <- ggplot(dlpd, aes(nvar, value)) + geom_point(size=0.3)
+	p1 <- p1 + stat_summary(fun.data=summaryfun, color="red") + geom_abline(slope=0)
+	p1 <- p1 + labs(title=expression(Delta~LPD), x="variables", y=expression(Delta~LPD))
+	dmse <- mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))
+	dmse <- melt(dmse, varnames=c("CV","nvar"))
+	p2 <- ggplot(dmse, aes(nvar, value)) + geom_point(size=0.3)
+	p2 <- p2 + stat_summary(fun.data=summaryfun, color="red") + geom_abline(slope=0)
+	p2 <- p2 + labs(title=expression(Delta~MSE), x="variables", y=expression(Delta~MSE))
+	png(file=file.path(OUTDIR,sprintf("CV-%d-%s.png",jobi,g)),height=600,width=800)
+	print(multiplot(p1,p2))
+	dev.off()
 }
