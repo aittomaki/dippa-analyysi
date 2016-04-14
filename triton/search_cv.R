@@ -6,12 +6,12 @@
 
 FILEDIR <- "/triton/work/jaittoma"
 
-# necessary libraries
+# Load necessary libraries
 require(rstan)
 source(file.path(FILEDIR,"dippa-analyysi","triton","projection.R"))
 sessionInfo()
 
-# which array ID are we at
+# Check which job array ID we are at
 jobi <- as.integer(commandArgs(TRUE)[1])
 
 # Load data
@@ -20,28 +20,30 @@ DATADIR <- file.path(FILEDIR,"dippa-data")
 prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
 gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
 mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
-d <- ncol(mirna)
-g <- colnames(prot)[jobi] # name of the gene
-samples <- rownames(prot)
-n <- length(samples)
-P <- as.numeric(prot[samples,g])
-G <- as.numeric(gene[samples,g])
-M <- mirna[samples,]
+# Reformat data
+d <- ncol(mirna)          #number of miRNA covariates
+g <- colnames(prot)[jobi] #name of the gene
+samples <- rownames(prot) #samplenames
+n <- length(samples)      #num of samples
+P <- as.numeric(prot[samples,g]) #protein expr vector
+G <- as.numeric(gene[samples,g]) #gene expr vector
+M <- mirna[samples,]             #miRNA expr matrix
 
 # Parameters
 model_file <- file.path(FILEDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
 nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
-n_proj_samples <- 200
+n_proj_samples <- 200 #num of simulation samples to use for projection prediction
+MAX_VARS <- 50        #max num of covars to add into model in projection prediction
 multicore <- FALSE
 do.plots <- FALSE
-MAX_VARS <- 50
+
 # Output files
 OUTDIR <- file.path(FILEDIR,"dippa-analyysi","execute")
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
 
-# Set rstan multicore options if wished
+# Use rstan multicore options if set
 if(multicore) {
 	rstan_options(auto_write = TRUE)
 	options(mc.cores = n_chains)
@@ -50,9 +52,9 @@ if(multicore) {
 
 # cross-validate the variable searching
 cvk <- 10
-lpd <- matrix(0, cvk, MAX_VARS) # lpd for each validation set
-mse <- matrix(0, cvk, MAX_VARS) # mse for - '' -
-lpdfull <- rep(0, cvk)
+mlpd <- matrix(0, cvk, MAX_VARS) # mlpd for each submodel in each CV fold
+mse <- matrix(0, cvk, MAX_VARS)  # mse for - '' -
+mlpdfull <- rep(0, cvk)
 msefull <- rep(0, cvk)
 
 fit <- NA
@@ -91,11 +93,11 @@ for (i in 1:cvk) {
 	# make predictions for the observations in the validation set
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
 	yval <- P[ival]
-	# calculate mse and lpd for full model with validation set
+	# calculate mse and mlpd for full model with validation set
 	ypredfull <- rowMeans(xval %*% w)
 	msefull[i] <-  mean((yval-ypredfull)^2)
 	pdfull <- dnorm(yval, xval %*% w, sqrt(sigma2))
-	lpdfull[i] <- mean(log(rowMeans(pdfull)))
+	mlpdfull[i] <- mean(log(rowMeans(pdfull)))
 	# then for each submodel along the selection path
 	for (k in 1:MAX_VARS) {
 
@@ -110,19 +112,19 @@ for (i in 1:cvk) {
 		
 		# mean log predictive density using the projected parameters
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
-		lpd[i,k] <- mean(log(rowMeans(pd)))
+		mlpd[i,k] <- mean(log(rowMeans(pd)))
 	}
 }
 
 # Save results
-save(lpd, mse, lpdfull, msefull, spath, posterior, file=out_file)
+save(mlpd, mse, mlpdfull, msefull, spath, posterior, file=out_file)
 
 if(do.plots) {
 	# Plot a bit
 	#png(file=file.path(OUTDIR,sprintf("CV-%d-%s.png",jobi,g)))
 	#layout(matrix(c(1,2)))
-	#plot(colMeans(lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))), xlab="nvar", ylab="dLPD")
-	#title("dLPD")
+	#plot(colMeans(mlpd-matrix(rep(mlpdfull,ncol(mlpd)),nrow=nrow(mlpd))), xlab="nvar", ylab="dMLPD")
+	#title("dMLPD")
 	#abline(h=0);
 	#plot(colMeans(mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))), xlab="nvar", ylab="dMSE")
 	#title("dMSE")
@@ -135,11 +137,11 @@ if(do.plots) {
 	source("multiplot.R")
 	summaryfun <- "mean_se"
 	theme_set(theme_bw())
-	dlpd <- lpd-matrix(rep(lpdfull,ncol(lpd)),nrow=nrow(lpd))
-	dlpd <- melt(dlpd, varnames=c("CV","nvar"))
-	p1 <- ggplot(dlpd, aes(nvar, value)) + geom_point(size=0.3)
+	dmlpd <- mlpd-matrix(rep(mlpdfull,ncol(mlpd)),nrow=nrow(mlpd))
+	dmlpd <- melt(dmlpd, varnames=c("CV","nvar"))
+	p1 <- ggplot(dmlpd, aes(nvar, value)) + geom_point(size=0.3)
 	p1 <- p1 + stat_summary(fun.data=summaryfun, color="red") + geom_abline(slope=0)
-	p1 <- p1 + labs(title=expression(Delta~LPD), x="variables", y=expression(Delta~LPD))
+	p1 <- p1 + labs(title=expression(Delta~MLPD), x="variables", y=expression(Delta~MLPD))
 	dmse <- mse-matrix(rep(msefull,ncol(mse)),nrow=nrow(mse))
 	dmse <- melt(dmse, varnames=c("CV","nvar"))
 	p2 <- ggplot(dmse, aes(nvar, value)) + geom_point(size=0.3)
