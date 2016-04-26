@@ -63,6 +63,11 @@ lpd <- matrix(0, n, MAX_VARS) # lpd for each validation sample in each CV fold f
 se <- matrix(0, n, MAX_VARS)  # square error for - '' -
 lpd.full <- numeric(n) # lpd for each sample for full model
 se.full <- numeric(n)  # square error for - '' -
+mlpd <- matrix(0, cvk, MAX_VARS) # lpd for each validation set
+mse <- matrix(0, cvk, MAX_VARS) # mse for - '' -
+mlpd.full <- numeric(cvk) # lpd for each sample for full model
+mse.full <- numeric(cvk)  # square error for - '' -
+
 
 fit <- NA
 posterior <- list()
@@ -95,8 +100,12 @@ for (i in 1:cvk) {
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
 	yval <- P[ival]
 	# calculate lpd and se for full model
-	lpd.full[ival] <- log(rowMeans(dnorm(yval, xval %*% w, sqrt(sigma2))))
-	se.full[ival] <- (yval-rowMeans(xval %*% w))^2
+	pd <- dnorm(yval, xval %*% w, sqrt(sigma2))
+	lpd.full[ival] <- log(rowMeans(pd))
+	mlpd.full[i] <- mean(log(rowMeans(pd)))
+	ypred <- rowMeans(xval %*% w)
+	se.full[ival] <- (yval-ypred)^2
+	mse.full[i] <- mean((yval-ypred)^2)
 
 	# take a smaller sample of the weight samples to improve projection speed
 	isamp  <- sample.int(ncol(w), n_proj_samples)
@@ -119,12 +128,14 @@ for (i in 1:cvk) {
 		# squared error
 		ypred <- rowMeans(xval %*% wp)
 		se[ival,k] <- (yval-ypred)^2
+		mse[i,k] <- mean((yval-ypred)^2)
 		
 		# log predictive density using the projected parameters
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[ival,k] <- log(rowMeans(pd))
+		mlpd[i,k] <- mean(log(rowMeans(pd)))
 	}
 }
 
 # Save results
-save(lpd, lpd.full, se, se.full, spath, posterior, file=out_file)
+save(lpd, lpd.full, mlpd, mlpd.full, se, se.full, mse, mse.full, spath, posterior, file=out_file)
