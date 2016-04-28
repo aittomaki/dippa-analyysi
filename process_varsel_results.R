@@ -1,5 +1,5 @@
-FILEDIR <- "/home/viljami/wrk/tritonfake"
-DATADIR <- file.path(FILEDIR,"dippa-analyysi","execute")
+WRKDIR <- Sys.getenv("WRKDIR")
+DATADIR <- file.path(WRKDIR,"dippa-analyysi","execute")
 RESULTDIR <- file.path(DATADIR,"processed")
 
 # Load necessary libraries
