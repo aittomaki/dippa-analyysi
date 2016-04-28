@@ -69,9 +69,9 @@ ggsave(file.path(RESULTDIR,paste(f,".png",sep="")), g)
 mlpd.cv.0 <- mean(lpd.cv[,1]) #this is for foldwise mlpd's
 mlpd.cv.full <- mean(lpd.cv.full) #--"--
 U.cv <- 0.05*(mlpd.cv.0-mlpd.cv.full)
-d.mlpd.cv <- apply(mlpd.cv, 2, mean)
-credint.cv <- apply(mlpd.cv, 2, bb)
-se.cv <- apply(mlpd.cv, 2, function(x) sqrt(var(x)/length(x)))
+d.mlpd.cv <- apply(lpd.cv, 2, mean)
+credint.cv <- apply(lpd.cv, 2, bb)
+se.cv <- apply(lpd.cv, 2, function(x) sqrt(var(x)/length(x)))
 se.cv <- rbind(d.mlpd.cv-Q*se.cv, d.mlpd.cv+Q*se.cv)
 d.mlpd.cv <- t(rbind(d.mlpd.cv, credint.cv, se.cv))
 # Compute delta MLPD, change into a data frame
