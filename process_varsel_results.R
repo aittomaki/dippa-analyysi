@@ -21,16 +21,8 @@ for(f in files) {
 # Load data
 load(file.path(DATADIR,f))
 
-# HACK FOR BUGGY RESULTS
-if(dim(mlpd)[2]>50)
-    mlpd <- mlpd[,1:50]
-if(length(mlpd.full)>50)
-    mlpd.full <- mlpd.full[1:50]
-
 
 # Compute reference MLPD's
-mlpd.cv.0 <- mean(mlpd[,1]) #this is for foldwise mlpd's
-mlpd.cv.full <- mean(mlpd.full) #--"--
 mlpd.0 <- mean(lpd[,1])
 mlpd.full <- mean(lpd.full)
 U <- 0.05*(mlpd.0-mlpd.full) # decision limit for variable number to choose
@@ -74,10 +66,12 @@ ggsave(file.path(RESULTDIR,paste(f,".png",sep="")), g)
 
 
 ## COMPUTE THE FOLD-WISE MLPD VERSION TO COMPARE!
+mlpd.cv.0 <- mean(lpd.cv[,1]) #this is for foldwise mlpd's
+mlpd.cv.full <- mean(lpd.cv.full) #--"--
 U.cv <- 0.05*(mlpd.cv.0-mlpd.cv.full)
-d.mlpd.cv <- apply(mlpd, 2, mean)
-credint.cv <- apply(mlpd, 2, bb)
-se.cv <- apply(mlpd, 2, function(x) sqrt(var(x)/length(x)))
+d.mlpd.cv <- apply(mlpd.cv, 2, mean)
+credint.cv <- apply(mlpd.cv, 2, bb)
+se.cv <- apply(mlpd.cv, 2, function(x) sqrt(var(x)/length(x)))
 se.cv <- rbind(d.mlpd.cv-Q*se.cv, d.mlpd.cv+Q*se.cv)
 d.mlpd.cv <- t(rbind(d.mlpd.cv, credint.cv, se.cv))
 # Compute delta MLPD, change into a data frame
@@ -91,7 +85,6 @@ n.chosen.cv <- min(which(d.mlpd.cv$lower > U))
 print(n.chosen.cv)
 
 # Make a plot of dMLPD vs num of vars in submodel
-theme_set(theme_bw())
 g <- ggplot(d.mlpd.cv, aes(n,dMLPD))
 g <- g + geom_hline(yintercept = 0, linetype="dashed")
 g <- g + geom_hline(yintercept = U.cv, linetype="dashed", color="red")
