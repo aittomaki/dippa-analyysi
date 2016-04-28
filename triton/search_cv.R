@@ -56,47 +56,43 @@ if(multicore) {
 
 
 
-# Cross-validate the variable searching (to get good n of vars)
-cvk <- 10
-lpd <- matrix(0, n, MAX_VARS) # lpd for each validation sample in each CV fold for all submodels
-se <- matrix(0, n, MAX_VARS)  # squared error for - '' -
-lpd.full <- numeric(n) # lpd for each sample for full model
-se.full <- numeric(n)  # squared error for - '' -
-lpd.cv <- matrix(0, cvk, MAX_VARS) # foldwise mlpd's
-se.cv <- matrix(0, cvk, MAX_VARS) # foldwise mse's
-lpd.cv.full <- numeric(cvk) # foldwise mlpd for full model
-se.cv.full <- numeric(cvk)  # foldwise mse  for - '' -
+## Cross-validate the variable searching (to get good n of vars)
+cvk <- 10 #number of folds in CV
+# Variables for results
+lpd <- matrix(0, n, MAX_VARS) #lpd for each validation sample in each CV fold for all submodels
+se <- matrix(0, n, MAX_VARS)  #squared error for - '' -
+lpd.full <- numeric(n) #lpd for each sample for full model
+se.full <- numeric(n)  #squared error for - '' -
+posterior <- list() #posterior distrs for weights of full model for each CV-fold
+spath <- list() #variable forward selection paths for each CV-fold
 
-
-fit <- NA
-posterior <- list()
-spath <- list()
+fit <- NA #last fit by rstan
 
 for (i in 1:cvk) {
 
-	## Form the training and validation set indices
+	# Form training and validation set indices
 	ival <- seq(i,n,cvk)
 	itr <- setdiff(1:n,ival)
 	nval <- length(ival)
 	ntr <- length(itr)
 
-	## Fit the full model for this CV-fold
+	# Fit full model for this fold
 	print(sprintf("Fitting full model for fold %d/%d...",i,cvk))
 	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu)
 	fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 
-	# Save summary of posterior distributions
+	# Save summary of marginal posterior distributions of full model
 	sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
 	ikeepvars <- grep("w|tau|lambda", rownames(sry))
 	posterior[[i]] <- sry[ikeepvars,]
 
 	## Do the variable selection search
-	# Get weights for full model
+	# Get posterior samples of weights for full model
 	e <- extract(fit)
 	w <- rbind(e$w0, e$wg, t(e$w)) # stack the intercept and gene and miRNA weights
 	sigma2 <- e$sigma^2
 
-	# Form training and validation data
+	# Form training and validation data (adding column of 1's for intercept)
 	xtr <- cbind(rep(1,ntr), G[itr], M[itr,])
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
 	yval <- P[ival]
@@ -104,10 +100,8 @@ for (i in 1:cvk) {
 	# Calculate lpd and se for full model
 	pd <- dnorm(yval, xval %*% w, sqrt(sigma2))
 	lpd.full[ival] <- log(rowMeans(pd))
-	lpd.cv.full[i] <- mean(log(rowMeans(pd)))
 	ypred <- rowMeans(xval %*% w)
 	se.full[ival] <- (yval-ypred)^2
-	se.cv.full[i] <- mean((yval-ypred)^2)
 
 	# Take a sample of the weight posterior samples to improve projection speed
 	isamp  <- sample.int(ncol(w), n_proj_samples)
@@ -118,8 +112,8 @@ for (i in 1:cvk) {
 	print(sprintf("Doing variable selection for fold %d/%d...",i,cvk))
 	spath[[i]] <- lm_fprojsel(w, sigma2, xtr, MAX_VARS)
 
-	## Calculate lpd and se for each submodel along the selection path
-	## by making predictions for the observations in the validation set
+	# Calculate lpd and se for each submodel along the selection path
+	# by making predictions for the observations in the validation set
 	for (k in 1:MAX_VARS) {
 
 		# projected parameters
@@ -130,14 +124,12 @@ for (i in 1:cvk) {
 		# squared error
 		ypred <- rowMeans(xval %*% wp)
 		se[ival,k] <- (yval-ypred)^2
-		se.cv[i,k] <- mean((yval-ypred)^2)
 
 		# log predictive density using the projected parameters
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[ival,k] <- log(rowMeans(pd))
-		lpd.cv[i,k] <- mean(log(rowMeans(pd)))
 	}
 }
 
 # Save results
-save(lpd, lpd.full, se, se.full, lpd.cv, lpd..cv.full, se.cv, se.cv.full, spath, posterior, file=out_file)
+save(lpd, lpd.full, se, se.full, spath, posterior, file=out_file)
