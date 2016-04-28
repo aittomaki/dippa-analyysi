@@ -7,19 +7,19 @@
 # Outputs performance metrics (MLPD, MSE) for each fold and
 # posteriors for full models.
 
-FILEDIR <- "/triton/work/jaittoma"
+WRKDIR  <- Sys.getenv("WRKDIR")
+DATADIR <- file.path(WRKDIR,"dippa-data")
+OUTDIR  <- file.path(WRKDIR,"dippa-analyysi","execute")
 
 # Load necessary libraries
 require(rstan)
-source(file.path(FILEDIR,"dippa-analyysi","triton","projection.R"))
-sessionInfo()
+source(file.path(WRKDIR,"dippa-analyysi","triton","projection.R"))
 
 # Check which job array ID we are at
 jobi <- as.integer(commandArgs(TRUE)[1])
 
 # Load data
 print("Loading data...")
-DATADIR <- file.path(FILEDIR,"dippa-data")
 prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
 gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
 mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
@@ -35,7 +35,7 @@ M <- mirna[samples,]             #miRNA expr matrix
 rm(prot,gene,mirna,samples)
 
 # Parameters
-modelfile <- file.path(FILEDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
+modelfile <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
 nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
@@ -44,7 +44,6 @@ MAX_VARS <- 50        #max num of covars to add into model in projection predict
 multicore <- FALSE
 
 # Output files
-OUTDIR <- file.path(FILEDIR,"dippa-analyysi","execute")
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
 
 # Use rstan multicore options if set
@@ -80,7 +79,7 @@ for (i in 1:cvk) {
 	itr <- setdiff(1:n,ival)
 	nval <- length(ival)
 	ntr <- length(itr)
-	
+
 	## Fit the full model for this CV-fold
 	print(sprintf("Fitting full model for fold %d/%d...",i,cvk))
 	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu)
@@ -89,7 +88,7 @@ for (i in 1:cvk) {
 	sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
 	ikeepvars <- grep("w|tau|lambda", rownames(sry))
 	posterior[[i]] <- sry[ikeepvars,]
-	
+
 	## Do the variable selection search
 	# get weights for full model
 	e <- extract(fit)
@@ -124,12 +123,12 @@ for (i in 1:cvk) {
 		submodel <- lm_proj(w, sigma2, xtr, spath[[i]]$chosen[1:k])
 		wp       <- submodel$w
 		sigma2p  <- submodel$sigma2
-		
+
 		# squared error
 		ypred <- rowMeans(xval %*% wp)
 		se[ival,k] <- (yval-ypred)^2
 		mse[i,k] <- mean((yval-ypred)^2)
-		
+
 		# log predictive density using the projected parameters
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[ival,k] <- log(rowMeans(pd))
