@@ -35,7 +35,7 @@ M <- mirna[samples,]             #miRNA expr matrix
 rm(prot,gene,mirna,samples)
 
 # Parameters
-modelfile <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
+model <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
 nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
 n_iter <- 1000
 n_chains <- 4
@@ -58,14 +58,14 @@ if(multicore) {
 
 # Cross-validate the variable searching (to get good n of vars)
 cvk <- 10
-lpd <- matrix(0, n, MAX_VARS) # lpd for each validation sample in each CV fold for each submodel
-se <- matrix(0, n, MAX_VARS)  # square error for - '' -
+lpd <- matrix(0, n, MAX_VARS) # lpd for each validation sample in each CV fold for all submodels
+se <- matrix(0, n, MAX_VARS)  # squared error for - '' -
 lpd.full <- numeric(n) # lpd for each sample for full model
-se.full <- numeric(n)  # square error for - '' -
-mlpd <- matrix(0, cvk, MAX_VARS) # lpd for each validation set
-mse <- matrix(0, cvk, MAX_VARS) # mse for - '' -
-mlpd.full <- numeric(cvk) # lpd for each sample for full model
-mse.full <- numeric(cvk)  # square error for - '' -
+se.full <- numeric(n)  # squared error for - '' -
+lpd.cv <- matrix(0, cvk, MAX_VARS) # foldwise mlpd's
+se.cv <- matrix(0, cvk, MAX_VARS) # foldwise mse's
+lpd.cv.full <- numeric(cvk) # foldwise mlpd for full model
+se.cv.full <- numeric(cvk)  # foldwise mse  for - '' -
 
 
 fit <- NA
@@ -74,7 +74,7 @@ spath <- list()
 
 for (i in 1:cvk) {
 
-	## Form the training and validation sets
+	## Form the training and validation set indices
 	ival <- seq(i,n,cvk)
 	itr <- setdiff(1:n,ival)
 	nval <- length(ival)
@@ -83,30 +83,33 @@ for (i in 1:cvk) {
 	## Fit the full model for this CV-fold
 	print(sprintf("Fitting full model for fold %d/%d...",i,cvk))
 	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu)
-	fit <- stan(file=modelfile, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
-	# save summary of posterior distributions
+	fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+
+	# Save summary of posterior distributions
 	sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
 	ikeepvars <- grep("w|tau|lambda", rownames(sry))
 	posterior[[i]] <- sry[ikeepvars,]
 
 	## Do the variable selection search
-	# get weights for full model
+	# Get weights for full model
 	e <- extract(fit)
 	w <- rbind(e$w0, e$wg, t(e$w)) # stack the intercept and gene and miRNA weights
 	sigma2 <- e$sigma^2
-	# form training and validation data
+
+	# Form training and validation data
 	xtr <- cbind(rep(1,ntr), G[itr], M[itr,])
 	xval <- cbind(rep(1,nval), G[ival], M[ival,])
 	yval <- P[ival]
-	# calculate lpd and se for full model
+
+	# Calculate lpd and se for full model
 	pd <- dnorm(yval, xval %*% w, sqrt(sigma2))
 	lpd.full[ival] <- log(rowMeans(pd))
-	mlpd.full[i] <- mean(log(rowMeans(pd)))
+	lpd.cv.full[i] <- mean(log(rowMeans(pd)))
 	ypred <- rowMeans(xval %*% w)
 	se.full[ival] <- (yval-ypred)^2
-	mse.full[i] <- mean((yval-ypred)^2)
+	se.cv.full[i] <- mean((yval-ypred)^2)
 
-	# take a smaller sample of the weight samples to improve projection speed
+	# Take a sample of the weight posterior samples to improve projection speed
 	isamp  <- sample.int(ncol(w), n_proj_samples)
 	w      <- w[,isamp]
 	sigma2 <- sigma2[isamp]
@@ -127,14 +130,14 @@ for (i in 1:cvk) {
 		# squared error
 		ypred <- rowMeans(xval %*% wp)
 		se[ival,k] <- (yval-ypred)^2
-		mse[i,k] <- mean((yval-ypred)^2)
+		se.cv[i,k] <- mean((yval-ypred)^2)
 
 		# log predictive density using the projected parameters
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[ival,k] <- log(rowMeans(pd))
-		mlpd[i,k] <- mean(log(rowMeans(pd)))
+		lpd.cv[i,k] <- mean(log(rowMeans(pd)))
 	}
 }
 
 # Save results
-save(lpd, lpd.full, mlpd, mlpd.full, se, se.full, mse, mse.full, spath, posterior, file=out_file)
+save(lpd, lpd.full, se, se.full, lpd.cv, lpd..cv.full, se.cv, se.cv.full, spath, posterior, file=out_file)
