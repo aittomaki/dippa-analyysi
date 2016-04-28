@@ -156,7 +156,7 @@ distGallery = ImageGallery(force folderRoot = distributions)
 regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis_univariate.R")
 regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
 //regressionModel = CODEDIR+"simple_priors.stan"
-regressionModel = CODEDIR+"shrinkage_prior.stan"
+regressionModel = CODEDIR+"stan/shrinkage_prior.stan"
 testGenes = "GSK3B"//BRAF,PTK2"
 testMirnas = "hsa.miR.638"//,hsa.let.7d,hsa.miR.193a.3p"
 
