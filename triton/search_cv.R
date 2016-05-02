@@ -43,6 +43,7 @@ n_chains <- 4
 n_proj_samples <- 200 #num of simulation samples to use for projection prediction
 MAX_VARS <- 50        #max num of covars to add into model in projection prediction
 multicore <- FALSE
+params <- list(model=model, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, MAX_VARS=MAX_VARS)
 
 # Output files
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
@@ -133,4 +134,4 @@ for (i in 1:cvk) {
 }
 
 # Save results
-save(lpd, lpd.full, se, se.full, spath, posterior, file=out_file)
+save(lpd, lpd.full, se, se.full, spath, posterior, params, file=out_file)
