@@ -37,7 +37,7 @@ rm(prot,gene,mirna,samples)
 # Parameters
 model <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
 nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
-pn <- 10 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
+pn <- 10.0 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
 n_iter <- 1000
 n_chains <- 4
 n_proj_samples <- 200 #num of simulation samples to use for projection prediction

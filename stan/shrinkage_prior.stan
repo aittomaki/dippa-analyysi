@@ -20,11 +20,11 @@ functions {
 data {
 	int<lower=0> n; // number of samples
 	int<lower=0> d; // number of microRNA
-	int<lower=0> pn;// assumed number of meaningful variables
 	vector[n] P;	// protein expr output
 	matrix[n,d] M;	// microRNA expr input
 	vector[n] G;    // gene expr iput
 	real<lower=1> nu; // degrees of freedom for the half t-priors
+	real<lower=0> pn;// assumed number of meaningful variables
 }
 
 parameters {
