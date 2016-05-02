@@ -36,7 +36,8 @@ rm(prot,gene,mirna,samples)
 
 # Parameters
 model <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
-nu <- 3.0 # parameter for hyperpriors (student-t degrees of freedom)
+nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
+pn <- 10 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
 n_iter <- 1000
 n_chains <- 4
 n_proj_samples <- 200 #num of simulation samples to use for projection prediction
@@ -78,7 +79,7 @@ for (i in 1:cvk) {
 
 	# Fit full model for this fold
 	print(sprintf("Fitting full model for fold %d/%d...",i,cvk))
-	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu)
+	datalist <- list(G=G[itr], P=P[itr], M=M[itr,], n=ntr, d=d, nu=nu, pn=pn)
 	fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 
 	# Save summary of marginal posterior distributions of full model

@@ -20,6 +20,7 @@ functions {
 data {
 	int<lower=0> n; // number of samples
 	int<lower=0> d; // number of microRNA
+	int<lower=0> pn;// assumed number of meaningful variables
 	vector[n] P;	// protein expr output
 	matrix[n,d] M;	// microRNA expr input
 	vector[n] G;    // gene expr iput
@@ -31,7 +32,7 @@ parameters {
 	// intercept and noise std
 	real w0;
 	real<lower=0> sigma;
-  
+
 	// gene expression weight
 	real wg;
 
@@ -44,34 +45,34 @@ parameters {
 }
 
 transformed parameters {
-	
+
 	// global and local variance parameters, and the input weights
 	real<lower=0> tau;
 	vector<lower=0>[d] lambda;
 	vector[d] w;
-	
+
 	tau <- r1_global * sqrt(r2_global); // this is a student's T!
 	lambda <- r1_local .* sqrt_vec(r2_local); // this is a student's T!
 	w <- z .* lambda*tau;
 }
 
 model {
-	
+
 	// observation model
 	P ~ normal(M*w + G*wg + w0, sigma);
-	
+
 	// half t-priors for lambdas (nu = 1 corresponds to horseshoe)
 	z ~ normal(0, 1);
 	r1_local ~ normal(0.0, 1.0);
 	r2_local ~ inv_gamma(0.5*nu, 0.5*nu);
-	
-	// half cauchy for tau
-	r1_global ~ normal(0.0, 1.0);
+
+	// tight half cauchy for tau
+	r1_global ~ normal(0.0, pn/n);
 	r2_global ~ inv_gamma(0.5, 0.5);
-	
+
 	// weakly informative prior for the intercept and gene weight
 	w0 ~ normal(0,5);
-	wg ~ normal(0,5); 
-	
+	wg ~ normal(0,5);
+
 	// using uniform prior on the noise variance
 }
