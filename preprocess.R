@@ -8,8 +8,8 @@ library(componentSkeleton) #Anduril library
 DATADIR <- "~/wrk/dippa-data/"
 
 # Load data
-#eset_mirna <- getGEO(GEO = "GSE58210", destdir = ".")[[1]]
-#eset_mrna <- getGEO(GEO = "GSE58212", destdir = ".")[[1]]
+#eset_mirna <- getGEO(GEO = "GSE58210", destdir = DATADIR)[[1]]
+#eset_mrna <- getGEO(GEO = "GSE58212", destdir = DATADIR)[[1]]
 eset_mrna <- getGEO(filename = file.path(DATADIR,"GSE58212_series_matrix.txt.gz"))
 eset_mirna <- getGEO(filename = file.path(DATADIR,"GSE58210_series_matrix.txt.gz"))
 df_prot <- CSV.read(file.path(DATADIR,"Oslo2-RPPA_data.csv"))
