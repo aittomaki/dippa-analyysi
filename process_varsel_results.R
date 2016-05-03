@@ -18,13 +18,14 @@ U.factor <- 0.05
 
 # List result files
 files <- list.files(DATADIR, pattern = "CV-.*.rda")
-print(str(files))
+str(files)
 
 # Go through result files in DATADIR
 for(f in files) {
 
     # Load data
     load(file.path(DATADIR,f))
+    gene <- sub("CV-\\d+-(\\w+).rda","\\1", f)
 
     # Compute decision limit for num of covars to choose
     U <- U.factor*mean(lpd[,1]-lpd.full)
@@ -63,7 +64,8 @@ for(f in files) {
     g <- g + geom_errorbar(aes(ymin=hdi.lower, ymax=hdi.upper), color="gray", width=0.4)
     g <- g + geom_errorbar(aes(ymin=se.lower, ymax=se.upper), color="red", width=0, alpha=0.4)
     g <- g + geom_line()
-    g <- g + ggtitle(f)
+    g <- g + ggtitle(bquote(paste(.(gene), " half-Cauchy ", tau, " prior")))
+    g <- g + ylab(bquote(Delta~MLPD))
     ggsave(file.path(RESULTDIR,paste(f,".png",sep="")), g)
 
 
