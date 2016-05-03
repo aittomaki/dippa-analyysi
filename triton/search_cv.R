@@ -35,7 +35,7 @@ M <- mirna[samples,]             #miRNA expr matrix
 rm(prot,gene,mirna,samples)
 
 # Parameters
-model <- file.path(WRKDIR,"dippa-analyysi","stan","shrinkage_prior.stan")
+model <- file.path(WRKDIR,"dippa-analyysi","stan","HS.stan")
 nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
 pn <- 10.0 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
 n_iter <- 1000
