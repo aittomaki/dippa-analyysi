@@ -6,9 +6,9 @@
 
 
 
-
 // INIT
 //==========================================================
+
 // Parameters
 startFromRaw        = false
 // Correlation params
@@ -19,7 +19,8 @@ corPThresh          = 1
 SIGMA               = 0.1
 N_ITER              = 1000
 N_CHAINS            = 4
-MULTICORE           = "true" //should Stan run in multicore mode
+MULTICORE           = "true" //should rstan run in multicore mode
+
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
@@ -28,13 +29,15 @@ mirna = INPUT(path=DATADIR+"mirna.csv")
 falseMirnas = INPUT(path=DATADIR+"false_miRNA_ids.txt")
 mrna = INPUT(path=DATADIR+"mrna.csv")
 mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
-
+clinicalMessy = INPUT(path=DATADIR+"OSLO2-clinical.csv")
+samples = INPUT(path=DATADIR+"samples.csv")
 
 
 
 // PREPROCESS
 //==========================================================
 
+// -- PROTEIN DATA --
 // Expand a AKT1/2/3 type proteins
 proteinAnnotExpand = INPUT(path=CODEDIR+"protein_expandannot.csv")
 proteinExpand = IDConvert(
@@ -64,6 +67,7 @@ proteinNorm = LinearNormalizer(
 	matrix = proteinT,
 	method = "z")
 
+// -- mRNA DATA --
 // Convert mRNA probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
 	filter      = mrnaAnnotAgilent,
@@ -91,6 +95,7 @@ geneNorm = LinearNormalizer(
 	matrix = geneT,
 	method = "z")
 
+// -- miRNA DATA --
 // Drop miRNAs not in miRBase
 mirnaFilter = CSVFilter(
 	csv            = mirna,
@@ -122,7 +127,6 @@ mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
 	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
 	width="10",height="10",dpCm="48")
 
-
 // [0,1] scaling and density plots (dont use these!)
 scalingScript = INPUT(path=CODEDIR+"scale_regression_data.R")
 proteinScaled = REvaluate(
@@ -147,6 +151,31 @@ distributions = LatexCombiner(
 	geneScaled.document, proteinScaled.document, mirnaScaled.document)
 distGallery = ImageGallery(force folderRoot = distributions)
 // Dens plots of R-normalized and Anduril-normalized vars seem to match! Yay!
+
+
+// -- CLINICAL DATA --
+// Remove TX from sample IDs
+samplesShort = SearchReplace(
+	file    = samples,
+	key00   = "(OSL2.)-(.{4})T.",
+	value00 = "$1-$2")
+// Filter down to samples in data
+clinicalFiltered = CSVFilter(
+	csv       = clinicalMessy,
+	auxiliary = samplesShort)
+// Replace empty cells with NA, clean spaces from values, clean column names
+clinicalClean = CSVCleaner(
+	clinicalFiltered,
+	skipQuotes = "Age,Tumorsize..mm.,Number_pos_nodes",
+	trim       = true,
+	naIn       = "\\e",
+	replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
+		"T.status\nTX\npTx\nM.status\nMX\nMx\n" +
+		"N.status\npN1\\(mi\\)\npN1",
+	rename     = "OSL2_ID=SampleID,Tumorsize..mm.=Tumorsize,HER.2=HER2,"+
+		"T.status=T,M.status=M,N.status=N")
+
+
 
 
 
