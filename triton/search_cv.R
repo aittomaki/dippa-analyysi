@@ -12,7 +12,9 @@ DATADIR <- file.path(WRKDIR,"dippa-data")
 OUTDIR  <- file.path(WRKDIR,"dippa-analyysi","execute")
 
 # Load necessary libraries
-require(rstan)
+library(rstan)
+library(bayesboot)
+library(HDInterval)
 source(file.path(WRKDIR,"dippa-analyysi","triton","projection.R"))
 
 # Check which job array ID we are at
@@ -34,16 +36,21 @@ M <- mirna[samples,]             #miRNA expr matrix
 # Cleanup
 rm(prot,gene,mirna,samples)
 
-# Parameters
+## Parameters
+# Params for CV and simulation
 model <- file.path(WRKDIR,"dippa-analyysi","stan","HS_student_t.stan")
 nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
-pn <- 10.0 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
+pn <- 1.0 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
 n_iter <- 1000
 n_chains <- 4
-n_proj_samples <- 200 #num of simulation samples to use for projection prediction
+n_proj_samples <- 500 #num of simulation samples to use for projection prediction
 MAX_VARS <- 50        #max num of covars to add into model in projection prediction
 multicore <- FALSE
-params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, MAX_VARS=MAX_VARS)
+# Params for dLPD intervals
+n_boot <- 5000
+conf_level <- 0.95
+# Save params for reference later
+params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, MAX_VARS=MAX_VARS, n_boot=n_boot, conf_level=conf_level)
 
 # Output files
 out_file <- file.path(OUTDIR,sprintf("CV-%d-%s.rda",jobi,g))
@@ -133,5 +140,32 @@ for (i in 1:cvk) {
 	}
 }
 
+
+## Compute utility differences for submodels
+
+# Make a matrix of full model utility
+lpd.full.m <- matrix(rep(lpd.full, MAX_VARS), ncol=MAX_VARS, byrow=F)
+
+# Compute deltaLPD and its interval for each submodel
+# Use Bayesian bootstrap to compute posterior interval
+bb <- function(x, nboot=n_boot, credMass=conf_level) {
+    babo <- bayesboot(x, weighted.mean, R=nboot, use.weights=T)
+    highdi <- hdi(babo, credMass=credMass)
+}
+deltaLPD <- lpd - lpd.full.m
+deltaMLPD <- colMeans(deltaLPD)
+cred.int <- apply(deltaLPD, 2, bb)
+# Also compute gaussian interval for comparison
+a <- (1-conf_level)/2
+Q <- qnorm(1-a)
+se.int <- apply(deltaLPD, 2, function(x) sqrt(var(x)/length(x)))
+se.int <- rbind(deltaMLPD-Q*se.int, deltaMLPD+Q*se.int)
+# Make a data frame of dMLPD's and intervals
+util <- t(rbind(1:MAX_VARS, deltaMLPD, cred.int, se.int))
+util <- as.data.frame(util)
+names(util) <- c("n","dMLPD","hdi.lower","hdi.upper","se.lower","se.upper")
+
+
+
 # Save results
-save(lpd, lpd.full, se, se.full, spath, posterior, params, file=out_file)
+save(util, lpd, lpd.full, se, se.full, spath, posterior, params, file=out_file)

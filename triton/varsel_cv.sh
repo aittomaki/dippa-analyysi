@@ -3,7 +3,7 @@
 #SBATCH -o /triton/work/jaittoma/dippa-analyysi/log/CV-%a.out
 #SBATCH --array=8
 
-## Bash script for running cross-validated variable number selection on Triton
+## Bash script for running cross-validated variable selection on Triton
 
 newgrp triton-users
 cd $TMPDIR
