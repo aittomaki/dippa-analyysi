@@ -128,7 +128,7 @@ mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
 	width="10",height="10",dpCm="48")
 
 // [0,1] scaling and density plots (dont use these!)
-scalingScript = INPUT(path=CODEDIR+"scale_regression_data.R")
+scalingScript = INPUT(path=CODEDIR+"R/scale_regression_data.R")
 proteinScaled = REvaluate(
 	script = scalingScript,
 	table1 = protein,
@@ -171,10 +171,16 @@ clinicalClean = CSVCleaner(
 	naIn       = "\\e",
 	replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
 		"T.status\nTX\npTx\nM.status\nMX\nMx\n" +
-		"N.status\npN1\\(mi\\)\npN1",
+		"N.status\npN1\\(mi\\)\npN1\n",
 	rename     = "OSL2_ID=SampleID,Tumorsize..mm.=Tumorsize,HER.2=HER2,"+
-		"T.status=T,M.status=M,N.status=N")
-
+		"T.status=T stage,M.status=M stage,N.status=N stage")
+clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
+clinicalLatex = REvaluate(
+	script = clinicalScript,
+	table1 = clinicalClean,
+	param1 = "Age,Tumorsize",
+	param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
+	param3 = "Clinical features for the patients included in the analysis. \\label{clinical-data}")
 
 
 
@@ -182,12 +188,12 @@ clinicalClean = CSVCleaner(
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
-regressionScriptUni = INPUT(path=CODEDIR+"regression_analysis_univariate.R")
-regressionScriptMulti = INPUT(path=CODEDIR+"regression_analysis_multivariate.R")
+regressionScriptUni = INPUT(path=CODEDIR+"R/regression_analysis_univariate.R")
+regressionScriptMulti = INPUT(path=CODEDIR+"R/regression_analysis_multivariate.R")
 //regressionModel = CODEDIR+"simple_priors.stan"
 regressionModel = CODEDIR+"stan/shrinkage_prior.stan"
-testGenes = "GSK3B"//BRAF,PTK2"
-testMirnas = "hsa.miR.638"//,hsa.let.7d,hsa.miR.193a.3p"
+testGenes = "GSK3B" //BRAF,PTK2
+testMirnas = "hsa.miR.638" //,hsa.let.7d,hsa.miR.193a.3p"
 
 regressionUni = REvaluate(
 	script = regressionScriptUni,
@@ -216,7 +222,7 @@ regressionMulti = REvaluate(
 	@enabled = false)
 
 // Process results from multivar full model regression on Triton
-resultScript = INPUT(path=CODEDIR+"process_multivariate_results.R")
+resultScript = INPUT(path=CODEDIR+"R/process_multivariate_results.R", @enabled=false)
 regressionResults = REvaluate(
 	script = resultScript,
 	param1 = "/home/viljami/wrk/fullmodelresults/nu3")
