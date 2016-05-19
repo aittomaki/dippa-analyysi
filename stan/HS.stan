@@ -67,7 +67,7 @@ model {
 	r2_local ~ inv_gamma(0.5*nu, 0.5*nu);
 
 	// tight half cauchy for tau
-	r1_global ~ normal(0.0, pn/n);
+	r1_global ~ normal(0.0, pn/n*sqrt(log(n/pn)));
 	r2_global ~ inv_gamma(0.5, 0.5);
 
 	// weakly informative prior for the intercept and gene weight
