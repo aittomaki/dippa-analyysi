@@ -52,7 +52,7 @@ prettyTable <- function(x, num_cols=NULL) {
 tables <- prettyTable(table1, num_cols=numerical_cols)
 
 # Make a LaTeX fragment of first table piece
-ltable1 <- xtable(tables[[1]], caption=caption, align="llccc")
+ltable1 <- xtable(tables[[1]], caption=caption, align="lllrr")
 ltable1 <- print(ltable1, caption.placement = "top", print.results=F, include.rownames=F)
 # Remove table ending
 ltable1 <- sub("   \\hline\n\\end{tabular}\n\\end{table}\n","", ltable1, fixed=T)
