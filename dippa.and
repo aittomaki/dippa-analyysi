@@ -188,6 +188,17 @@ clinicalLatex = REvaluate(
 
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
+
+// Collect results from CV var selection simulations
+cvResultScript = INPUT(path=CODEDIR+"R/CV_results.R")
+cvResults = REvaluate(
+	script = cvResultScript,
+	param1 = "/home/viljami/wrk/cvresults",
+	param2 = "0.05")
+cvGallery = ImageGallery(
+	force folderRoot = cvResults.document)
+
+
 regressionScriptUni = INPUT(path=CODEDIR+"R/regression_analysis_univariate.R")
 regressionScriptMulti = INPUT(path=CODEDIR+"R/regression_analysis_multivariate.R")
 //regressionModel = CODEDIR+"simple_priors.stan"
