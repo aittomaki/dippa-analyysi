@@ -1,0 +1,121 @@
+
+## Simulate full model for chosen number of miRNA variables
+#
+# Fits the full model for given number of miRNA variables.
+# The number of vars should be first computed with CV.
+# This script then does projection var sel upto chosen number
+# of vars, and then fits the full model for selected vars.
+
+
+## INIT #####
+
+WRKDIR  <- Sys.getenv("WRKDIR")
+DATADIR <- file.path(WRKDIR,"dippa-data")
+OUTDIR  <- file.path(WRKDIR,"dippa-analyysi","execute")
+
+# Load necessary libraries
+library(rstan)
+library(stats)
+source(file.path(WRKDIR,"dippa-analyysi","triton","projection.R"))
+
+# Check which job array ID we are at
+jobi <- as.integer(commandArgs(TRUE)[1])
+
+# Load data
+print("Loading data...")
+prot <- as.matrix(read.delim(file.path(DATADIR,"protein_normalized.csv"), row.names=1))
+gene <- as.matrix(read.delim(file.path(DATADIR,"gene_normalized.csv"), row.names=1))
+mirna <- as.matrix(read.delim(file.path(DATADIR,"mirna_normalized.csv"), row.names=1))
+# Reformat data
+d <- ncol(mirna)          #number of miRNA covariates
+g <- colnames(prot)[jobi] #name of the gene
+samples <- rownames(prot) #samplenames
+n <- length(samples)      #num of samples
+P <- as.numeric(prot[samples,g]) #protein expr vector
+G <- as.numeric(gene[samples,g]) #gene expr vector
+M <- mirna[samples,]             #miRNA expr matrix
+# Get chosen number of miRNA variables
+n_vars <- read.delim(file.path(DATADIR, "n_chosen_variables.csv"))
+n_vars <- n_vars[match(g,n_vars[,1]),2]
+if(is.na(numvars)) numvars <- 0
+# Cleanup
+rm(prot,gene,mirna,samples)
+
+## Parameters
+# Params for CV and simulation
+model <- file.path(WRKDIR,"dippa-analyysi","stan","HS.stan")
+nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
+pn <- 13.75 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
+n_iter <- 1000
+n_chains <- 4
+n_proj_samples <- 1000 #num of simulation samples to use for projection prediction
+multicore <- FALSE
+# Save params for reference later
+params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, n_vars=n_vars)
+
+# Output files
+out_file <- file.path(OUTDIR,sprintf("finalmodel-%d-%s.rda",jobi,g))
+
+# Use rstan multicore options if set
+if(multicore) {
+    rstan_options(auto_write = TRUE)
+    options(mc.cores = n_chains)
+}
+
+
+fit <- NA #last fit by rstan
+
+## VARIABLE SELECTION #####
+
+
+# Fit full model for gene variable only
+print("Fitting final full model...")
+datalist <- list(G=G, P=P, M=M[,c()], n=n, d=0, nu=nu, pn=pn)
+fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+e.gene <- extract(fit)
+sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
+ikeepvars <- grep("w|tau|lambda", rownames(sry))
+posterior.gene <- sry[ikeepvars,]
+
+
+if(n_vars > 0) {
+
+    # Fit full model for variable selection
+    print("Fitting full model for projection variable selection...")
+    datalist <- list(G=G, P=P, M=M, n=n, d=d, nu=nu, pn=pn)
+    fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+
+    ## Do the variable selection search
+    # Get posterior samples of weights for full model
+    e <- extract(fit)
+    w <- rbind(e$w0, e$wg, t(e$w)) # stack the intercept and gene and miRNA weights
+    sigma2 <- e$sigma^2
+    # Take a sample of the weight posterior samples to improve projection speed
+    isamp  <- sample.int(ncol(w), n_proj_samples)
+    w.s      <- w[,isamp]
+    sigma2.s <- sigma2[isamp]
+
+    # Do the projection predictive variable selection!
+    print("Doing projection variable selection...")
+    spath <- lm_fprojsel(w.s, sigma2.s, xtr, n_vars+2)
+
+    # Get the chosen miRNA vars
+    chosen.mirnas <- spath[3:length(spath)] - 2
+
+    # Fit final full model for chosen miRNA vars
+    print("Fitting final full model...")
+    datalist <- list(G=G, P=P, M=M[,chosen.mirnas], n=n, d=length(chosen.mirnas), nu=nu, pn=pn)
+    fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+
+    # Save the simulation samples of params
+    e <- extract(fit)
+
+    # Save summary of marginal posterior distributions of full model
+    sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
+    ikeepvars <- grep("w|tau|lambda", rownames(sry))
+    posterior <- sry[ikeepvars,]
+}
+
+
+# Save results
+save(posterior, posterior.gene, e, e.gene, params, file=out_file)
