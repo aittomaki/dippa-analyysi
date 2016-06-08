@@ -37,7 +37,7 @@ M <- mirna[samples,]             #miRNA expr matrix
 # Get chosen number of miRNA variables
 n_vars <- read.delim(file.path(DATADIR, "n_chosen_variables.csv"))
 n_vars <- n_vars[match(g,n_vars[,1]),2]
-if(is.na(numvars)) numvars <- 0
+if(is.na(n_vars)) n_vars <- 0
 # Cleanup
 rm(prot,gene,mirna,samples)
 
