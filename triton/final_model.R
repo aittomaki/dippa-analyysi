@@ -69,7 +69,7 @@ fit <- NA #last fit by rstan
 
 
 # Fit full model for gene variable only
-print("Fitting final full model...")
+print("Fitting gene only model...")
 datalist <- list(G=G, P=P, M=M[,c()], n=n, d=0, nu=nu, pn=pn)
 fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 e.gene <- extract(fit)
@@ -94,17 +94,21 @@ if(n_vars > 0) {
     isamp  <- sample.int(ncol(w), n_proj_samples)
     w.s      <- w[,isamp]
     sigma2.s <- sigma2[isamp]
+    # Stack expression data and add column of 1s
+    x <- cbind(rep(1,n), G, M)
+    y <- P
 
     # Do the projection predictive variable selection!
     print("Doing projection variable selection...")
-    spath <- lm_fprojsel(w.s, sigma2.s, xtr, n_vars+2)
+    spath <- lm_fprojsel(w.s, sigma2.s, x, n_vars+2)
 
     # Get the chosen miRNA vars
-    chosen.mirnas <- spath[3:length(spath)] - 2
+    chosen.mirnas <- colnames(x)[spath$chosen[3:length(spath$chosen)]]
+    mirna.i <- match(chosen.mirnas, colnames(M))
 
     # Fit final full model for chosen miRNA vars
     print("Fitting final full model...")
-    datalist <- list(G=G, P=P, M=M[,chosen.mirnas], n=n, d=length(chosen.mirnas), nu=nu, pn=pn)
+    datalist <- list(G=G, P=P, M=M[,mirna.i], n=n, d=length(mirna.i), nu=nu, pn=pn)
     fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 
     # Save the simulation samples of params
@@ -118,4 +122,4 @@ if(n_vars > 0) {
 
 
 # Save results
-save(posterior, posterior.gene, e, e.gene, params, file=out_file)
+save(chosen.mirnas, posterior, e, posterior.gene, e.gene, spath, params, file=out_file)
