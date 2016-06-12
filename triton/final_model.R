@@ -121,7 +121,7 @@ if(n_vars > 0) {
 
     # Save the simulation samples of params
     e <- extract(fit)
-    ypred <- x %*% e$w
+    ypred <- x[,spath$chosen] %*% e$w
     resid <- y - ypred
     resid.var <- apply(resid, 2, var)
     r2 <- 1 - resid.var/var(y)
