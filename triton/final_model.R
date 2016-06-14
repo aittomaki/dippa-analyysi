@@ -73,16 +73,11 @@ lm.fits <- list()
 
 # Fit full model for gene variable only
 print("Fitting gene only model...")
-#datalist <- list(G=G, P=P, M=M[,c()], n=n, d=0, nu=nu, pn=pn)
-#fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
-#e.gene <- extract(fit)
-#sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
-#ikeepvars <- grep("w|tau|lambda", rownames(sry))
-#posterior.gene <- sry[ikeepvars,]
-
 fit.gene <- stan_glm(P ~ G, prior=normal(0,5), prior_intercept=normal(0,5), iter=n_iter, chains=n_chains)
 posterior.gene <- fit.gene$stan_summary
-r2.gene <- 1 - var(residuals(fit.gene))/var(P)
+r2 <- 1 - var(residuals(fit.gene))/var(P)
+r2.gene <- c( r2, 1-(1-r2)*(n-1)/(n-2) )
+names(r2.gene) <- c("R2","R2.adjusted")
 
 lm.fits[["gene_only"]] <- lm(P ~ G)
 
@@ -121,10 +116,12 @@ if(n_vars > 0) {
 
     # Save the simulation samples of params
     e <- extract(fit)
-    ypred <- x[,spath$chosen] %*% e$w
-    resid <- y - ypred
-    resid.var <- apply(resid, 2, var)
-    r2 <- 1 - resid.var/var(y)
+    w <- rbind(e$w0, e$wg, t(e$w))
+    ypred <- x[,spath$chosen] %*% w
+    #r2 <- 1 - colSums((y-ypred)^2)/sum((y-mean(y))^2)
+    resid <- y-ypred
+    r2 <- 1-apply(resid,2,var)/var(y)
+    r2.adj <- 1 - (1-r2)*(n-1)/(n-(n_vars+1)-1)
 
     # Save summary of marginal posterior distributions of full model
     sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
@@ -132,10 +129,10 @@ if(n_vars > 0) {
     posterior <- sry[ikeepvars,]
 
     # lm fit for comparison
-    my.formula <- as.formula(paste("P ~ G + ", paste(chosen.mirnas, collapse=" + ")))
-    lm.fits[["full_model"]] <- with(M, lm(my.formula))
+    my.formula <- as.formula(paste("P ~ G + ", paste(chosen.mirnas, collapse=" + "),sep=""))
+    lm.fits[["full_model"]] <- lm(my.formula, data=as.data.frame(x))
 }
 
 
 # Save results
-save(chosen.mirnas, posterior, e, r2, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
+save(chosen.mirnas, posterior, e, r2, r2.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
