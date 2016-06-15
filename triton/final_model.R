@@ -131,8 +131,10 @@ if(n_vars > 0) {
     # lm fit for comparison
     my.formula <- as.formula(paste("P ~ G + ", paste(chosen.mirnas, collapse=" + "),sep=""))
     lm.fits[["full_model"]] <- lm(my.formula, data=as.data.frame(x))
+
+    # Save results
+    save(chosen.mirnas, posterior, e, r2, r2.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
+} else {
+    # Save only gene model
+    save(fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
 }
-
-
-# Save results
-save(chosen.mirnas, posterior, e, r2, r2.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
