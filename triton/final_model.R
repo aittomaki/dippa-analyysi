@@ -49,7 +49,7 @@ nu <- 3.0 #parameter for hyperpriors (student-t degrees of freedom)
 pn <- 13.75 #assumed number of meaningful covars, used for variance of tau prior, set small for more restrictive prior
 n_iter <- 1000
 n_chains <- 4
-n_proj_samples <- 1000 #num of simulation samples to use for projection prediction
+n_proj_samples <- 2000 #num of simulation samples to use for projection prediction
 multicore <- FALSE
 # Save params for reference later
 params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, n_vars=n_vars)
@@ -110,14 +110,13 @@ if(n_vars > 0) {
     mirna.i <- match(chosen.mirnas, colnames(M))
 
     # Fit final full model for chosen miRNA vars
-    print("Fitting final full model...")
-    datalist <- list(G=G, P=P, M=M[,mirna.i], n=n, d=length(mirna.i), nu=nu, pn=pn)
-    fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
+    #print("Fitting final full model...")
+    #datalist <- list(G=G, P=P, M=M[,mirna.i], n=n, d=length(mirna.i), nu=nu, pn=pn)
+    #fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 
-    # Save the simulation samples of params
-    e <- extract(fit)
-    w <- rbind(e$w0, e$wg, t(e$w))
-    ypred <- x[,spath$chosen] %*% w
+    # Use the projected weights to do prediction
+    w <- spath$w[,,n_vars+2]
+    ypred <- x %*% w
     #r2 <- 1 - colSums((y-ypred)^2)/sum((y-mean(y))^2)
     resid <- y-ypred
     r2 <- 1-apply(resid,2,var)/var(y)
