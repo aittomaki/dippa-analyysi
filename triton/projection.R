@@ -1,7 +1,8 @@
 #
 # functions for performing the projection predictive variable selection
 # for linear Gaussian model.
-#
+
+library(Matrix)
 
 lm_proj <- function(w,sigma2,x,indproj) {
 
@@ -38,7 +39,7 @@ lm_fprojsel <- function(w, sigma2, x, MAX_VARS) {
 	# forward variable selection using projection
     kl <- rep(0,MAX_VARS)
     sigma2p <- rep(0,MAX_VARS)
-    wp <- array(0, dim=c(dim(w),MAX_VARS))
+    wp <- list()
 	d = dim(x)[2]
 	chosen <- 1:2 # chosen variables, start from the model with the intercept and gene term
 	notchosen <- setdiff(1:d, chosen)
@@ -66,7 +67,7 @@ lm_fprojsel <- function(w, sigma2, x, MAX_VARS) {
 
 		kl[k] <- val[imin]
 		proj <- lm_proj(w,sigma2,x,imin)
-        wp[,,k] <- proj$w
+        wp[[k]] <- Matrix(proj$w)
         sigma2p <- proj$sigma2
 	}
 	return(list(chosen=chosen, kl=kl, sigma2=sigma2p, w=wp))
