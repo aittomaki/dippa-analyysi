@@ -15,7 +15,7 @@ OUTDIR  <- file.path(WRKDIR,"dippa-analyysi","execute")
 library(rstan)
 library(stats)
 library(bayesboot)
-library(HDInterval)
+library(Matrix)
 source(file.path(WRKDIR,"dippa-analyysi","triton","projection.R"))
 
 # Check which job array ID we are at
@@ -45,7 +45,7 @@ pn <- 13.75 #assumed number of meaningful covars, used for variance of tau prior
 n_iter <- 1000
 n_chains <- 4
 n_proj_samples <- 1000 #num of simulation samples to use for projection prediction
-MAX_VARS <- 100        #max num of covars to add into model in projection prediction
+MAX_VARS <- 200        #max num of covars to add into model in projection prediction
 multicore <- FALSE
 # Params for dLPD intervals
 n_boot <- 5000
@@ -140,8 +140,9 @@ for (i in 1:cvk) {
 		pd <- dnorm(yval, xval %*% wp, sqrt(sigma2p))
 		lpd[ival,k] <- log(rowMeans(pd))
 	}
+	# Drop the projected weight matrices from spath
+	spath[[i]]$w <- NULL
 }
-
 
 ## Compute utility differences for submodels
 
@@ -152,7 +153,7 @@ lpd.full.m <- matrix(rep(lpd.full, MAX_VARS), ncol=MAX_VARS, byrow=F)
 # Use Bayesian bootstrap to compute posterior interval
 bb <- function(x, nboot=n_boot, credMass=conf_level) {
     babo <- bayesboot(x, weighted.mean, R=nboot, use.weights=T)
-    highdi <- hdi(babo, credMass=credMass)
+    cred.int <- quantile(babo[,1], probs=c(0.025, 0.25, 0.50, 0.75, 0.975))
 }
 deltaLPD <- lpd - lpd.full.m
 deltaMLPD <- colMeans(deltaLPD)
@@ -165,12 +166,11 @@ se.int <- rbind(deltaMLPD-Q*se.int, deltaMLPD+Q*se.int)
 # Make a data frame of dMLPD's and intervals
 util <- t(rbind(1:MAX_VARS, deltaMLPD, cred.int, se.int))
 util <- as.data.frame(util)
-names(util) <- c("n","dMLPD","hdi.lower","hdi.upper","se.lower","se.upper")
+names(util) <- c("n","dMLPD","bb0.025","bb0.25","bb0.50","bb0.75","bb0.975","se.lower","se.upper")
 
 
 # Compute decision limit for num of covars to choose (just for convenience)
 U <- U.factor*mean(lpd[,1]-lpd.full)
-
 
 # Save results
 save(util, lpd, lpd.full, se, se.full, U, spath, posterior, params, file=out_file)
