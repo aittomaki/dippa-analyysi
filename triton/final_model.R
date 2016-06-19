@@ -115,7 +115,7 @@ if(n_vars > 0) {
     #fit <- stan(file=model, data=datalist, iter=n_iter, chains=n_chains, fit=fit)
 
     # Use the projected weights to do prediction
-    w <- spath$w[,,n_vars+2]
+    w <- spath$w[[n_vars+2]]
     ypred <- x %*% w
     #r2 <- 1 - colSums((y-ypred)^2)/sum((y-mean(y))^2)
     resid <- y-ypred
