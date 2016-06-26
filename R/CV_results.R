@@ -9,30 +9,37 @@
 if(exists("param1")) { # Anduril
     RESULTDIR <- param1
     PLOTDIR <- document.dir
-    U.factor <- as.numeric(param2)
+    U.factor <- as.numeric(unlist(strsplit(param2, ",")))
+    redo.cred.int <- as.logical(param3)
+    if(redo.cred.int == "") redo.cred.int <- FALSE
 } else { # non-Anduril
     RESULTDIR <- "/home/viljami/wrk/cvresults"
     PLOTDIR <- "/home/viljami/wrk/cvresults/plots"
     OUTFILE <- "/home/viljami/wrk/cvresults/selected_varnums.csv"
     if(!dir.exists(PLOTDIR)) dir.create(PLOTDIR)
-    U.factor <- 0.05
+    U.factor <- c(0.05, 0.1, 0.2)
+    redo.cred.int <- FALSE
 }
 # Params for recomputing credible interval for dMLPD
-redo.cred.int <- TRUE
 n_boot <- 5000
 
 
 library(bayesboot)
 library(xtable)
-library(reshape2)
 library(ggplot2)
 theme_set(theme_bw())
 
+# Get result file names
 resfiles <- list.files(RESULTDIR, pattern = "*.rda")
 # Get gene names from filenames
 genes <- sub("CV-\\d+-(\\w+).rda", "\\1", resfiles)
+# Sort into alphabetical order by gene
+isort <- order(genes)
+resfiles <- resfiles[isort]
+genes <- genes[isort]
+
 # Result matrix, chosen number of vars to include
-varnums <- matrix(0, nrow=length(genes), ncol=2)
+varnums <- matrix(0, nrow=length(genes), ncol=3*length(U.factor))
 
 # Helper function for getting lowest index higher than threshold
 # Gives index-2 i.e. number of miRNAs!
@@ -40,7 +47,7 @@ get_n_miRNA <- function(x, thresh) {
     lowest <- NA
     lt <- which(x > thresh)
     if(length(lt) > 0)
-        lowest <- max(min(lt)-2,0)
+        lowest <- max(min(lt)-2, 0)
     lowest
 }
 
@@ -63,49 +70,50 @@ for (i in 1:length(resfiles)) {
         lpd.full.m <- matrix(rep(lpd.full, MAX_VARS), ncol=MAX_VARS, byrow=F)
         bb <- function(x, nboot=n_boot) {
             babo <- bayesboot(x, weighted.mean, R=nboot, use.weights=T)
-            cred.int <- quantile(babo[,1], probs=c(0.025, 0.50, 0.975))
+            cred.int <- quantile(babo[,1], probs=c(0.025, 0.10, 0.25, 0.50, 0.75, 0.90, 0.975))
         }
         deltaLPD <- lpd - lpd.full.m
         cred.int <- t(apply(deltaLPD, 2, bb))
-        util$ci.lower <- cred.int[,"2.5%"]
-        util$ci.upper <- cred.int[,"97.5%"]
-        util$median <- cred.int[,"50%"]
-    } else {
-        util$ci.lower <- util$hdi.lower
-        util$ci.upper <- util$hdi.upper
-        util$median <- util$dMLPD
+        util$bb0.025 <- cred.int[,"2.5%"]
+        util$bb0.10 <- cred.int[,"10%"]
+        util$bb0.25 <- cred.int[,"25%"]
+        util$bb0.50 <- cred.int[,"50%"]
+        util$bb0.75 <- cred.int[,"75%"]
+        util$bb0.90 <- cred.int[,"90%"]
+        util$bb0.975 <- cred.int[,"97.5%"]
+        params$n_boot=n_boot
+        save(util, lpd, lpd.full, se, se.full, U, spath, posterior, params, file=file.path(RESULTDIR,f))
     }
-    # Compute selected number of miRNAs!
-    varnum.50 <- get_n_miRNA(util$median, U)
-    varnum.975 <- get_n_miRNA(util$ci.lower, U)
-    varnums[i,] <- c(varnum.50, varnum.975)
 
+    # Compute selected number of miRNAs!
+    for (j in 1:length(U)) {
+        varnums[i,(j*3-2)] <- get_n_miRNA(util$bb0.50, U[j])
+        varnums[i,(j*3-1)] <- get_n_miRNA(util$bb0.25, U[j])
+        varnums[i,(j*3)] <- get_n_miRNA(util$bb0.025, U[j])
+    }
+
+    # Plot var selection path and utility for current gene
     g <- ggplot(data=util, aes(x=n, y=dMLPD))
     g <- g + geom_hline(yintercept=0)
     g <- g + geom_hline(yintercept=U, color="red")
     g <- g + geom_line()
-    g <- g + geom_errorbar(aes(ymin=ci.lower,ymax=ci.upper), width=0, alpha=0.4)
+    g <- g + geom_errorbar(aes(ymin=bb0.025, ymax=bb0.975), width=0, color="grey60")
+    g <- g + geom_errorbar(aes(ymin=bb0.25, ymax=bb0.75), width=0, color="grey40")
     g <- g + labs(title=gene, x="N variables", y=bquote(Delta~MLPD))
 
     plot.file <- file.path(PLOTDIR, sprintf("%s_CV_path.png",gene))
-    ggsave(plot.file, g, height=3, width=4, dpi=600)
+    ggsave(plot.file, g, height=5, width=7, dpi=600)
 }
 
 # Convert result matrix to df
 varnums <- data.frame(genes, varnums)
-names(varnums) <- c("gene","a_0.50","a_0.975")
+clnms <- paste(rep(paste("U", U.factor, sep=""), each=length(U)), c("a0.50","a0.75","a0.975"), sep="_")
+names(varnums) <- c("gene", clnms)
 varnums <- varnums[order(varnums$gene),]
-
-# Make a histogram of num of vars selected
-d <- melt(varnums, id.vars="gene", value.name="N_variables", variable.name="confidence")
-g <- ggplot(d, aes(x=N_variables, group=confidence))
-g <- g + geom_histogram(aes(fill=confidence), alpha=0.4)
-plot.file <- file.path(PLOTDIR, "ZZ_variable_number_hist.pdf")
-ggsave(plot.file, g, height=3, width=4, dpi=600)
 
 # Output
 table.out <- varnums
-document.out <- print(xtable(varnums))
+document.out <- print(xtable(varnums), print.results=F)
 if(!exists("param1")) { # non-Anduril
     write.table(table.out, file=OUTFILE, sep="\t", row.names=F)
 }
