@@ -39,7 +39,7 @@ resfiles <- resfiles[isort]
 genes <- genes[isort]
 
 # Result matrix, chosen number of vars to include
-varnums <- matrix(0, nrow=length(genes), ncol=3*length(U.factor))
+varnums <- matrix(0, nrow=length(genes), ncol=4*length(U.factor))
 
 # Helper function for getting lowest index higher than threshold
 # Gives index-2 i.e. number of miRNAs!
@@ -87,9 +87,10 @@ for (i in 1:length(resfiles)) {
 
     # Compute selected number of miRNAs!
     for (j in 1:length(U)) {
-        varnums[i,(j*3-2)] <- get_n_miRNA(util$bb0.50, U[j])
-        varnums[i,(j*3-1)] <- get_n_miRNA(util$bb0.25, U[j])
-        varnums[i,(j*3)] <- get_n_miRNA(util$bb0.025, U[j])
+        varnums[i,(j*4-3)] <- get_n_miRNA(util$bb0.50, U[j])
+        varnums[i,(j*4-2)] <- get_n_miRNA(util$bb0.25, U[j])
+        varnums[i,(j*4-1)] <- get_n_miRNA(util$bb0.10, U[j])
+        varnums[i,(j*4)] <- get_n_miRNA(util$bb0.025, U[j])
     }
 
     # Plot var selection path and utility for current gene
@@ -107,7 +108,7 @@ for (i in 1:length(resfiles)) {
 
 # Convert result matrix to df
 varnums <- data.frame(genes, varnums)
-clnms <- paste(rep(paste("U", U.factor, sep=""), each=length(U)), c("a0.50","a0.75","a0.975"), sep="_")
+clnms <- paste(rep(paste("U", U.factor, sep=""), each=length(U)), c("a0.50","a0.75","a0.90","a0.975"), sep="_")
 names(varnums) <- c("gene", clnms)
 varnums <- varnums[order(varnums$gene),]
 
