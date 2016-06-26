@@ -9,18 +9,6 @@
 // INIT
 //==========================================================
 
-// Parameters
-startFromRaw        = false
-// Correlation params
-corMethod           = "spearman"
-corMinCompleteCases = 20
-corPThresh          = 1
-// Bayes simulation params
-SIGMA               = 0.1
-N_ITER              = 1000
-N_CHAINS            = 4
-MULTICORE           = "true" //should rstan run in multicore mode
-
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
@@ -41,114 +29,114 @@ samples = INPUT(path=DATADIR+"samples.csv")
 // Expand a AKT1/2/3 type proteins
 proteinAnnotExpand = INPUT(path=CODEDIR+"protein_expandannot.csv")
 proteinExpand = IDConvert(
-	csv                 = proteinMessy,
-	conversionTable     = proteinAnnotExpand,
-	sourceColumn        = "Gene",
-	keyColumn           = "GeneJoined",
-	conversionColumn    = "GeneExpanded",
-	splitConverted      = true,
-	originalWhenMissing = true)
+    csv                 = proteinMessy,
+    conversionTable     = proteinAnnotExpand,
+    sourceColumn        = "Gene",
+    keyColumn           = "GeneJoined",
+    conversionColumn    = "GeneExpanded",
+    splitConverted      = true,
+    originalWhenMissing = true)
 // Rename samples (- to . as R doesnt like - in col names)
 proteinRename = SearchReplace(
-	file    = proteinExpand,
-	key00   = "(OSL2.)-(.{6})",
-	value00 = "$1.$2")
+    file    = proteinExpand,
+    key00   = "(OSL2.)-(.{6})",
+    value00 = "$1.$2")
 // Remove Antibody column (leaves Gene (name))
 protein = CSVFilter(
-	csv            = proteinRename,
-	includeColumns = "Antibody",
-	negate         = true)
+    csv            = proteinRename,
+    includeColumns = "Antibody",
+    negate         = true)
 // Transpose to have variables as columns
 proteinT = MatrixTranspose(
-	matrix  = protein,
-	rowName = "SampleID")
+    matrix  = protein,
+    rowName = "SampleID")
 // Normalize for regression
 proteinNorm = LinearNormalizer(
-	matrix = proteinT,
-	method = "z")
+    matrix = proteinT,
+    method = "z")
 
 // -- mRNA DATA --
 // Convert mRNA probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
-	filter      = mrnaAnnotAgilent,
-	filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
-	attributes  = "external_gene_name,ensembl_gene_id",
-	martHost    = "www.ensembl.org",
-	@execute    = "once",
-	@enabled    = false)
+    filter      = mrnaAnnotAgilent,
+    filterTypes = "efg_agilent_sureprint_g3_ge_8x60k",
+    attributes  = "external_gene_name,ensembl_gene_id",
+    martHost    = "www.ensembl.org",
+    @execute    = "once",
+    @enabled    = false)
 geneAgilent = IDConvert(
-	csv              = mrna,
-	conversionTable  = mrnaAnnotAgilent,
-	conversionColumn = "GENE_SYMBOL",
-	unique           = true,
-	collapseNumeric  = "mean",
-	dropMissing      = true)
+    csv              = mrna,
+    conversionTable  = mrnaAnnotAgilent,
+    conversionColumn = "GENE_SYMBOL",
+    unique           = true,
+    collapseNumeric  = "mean",
+    dropMissing      = true)
 // Filter genes down to ones in protein data
 gene = CSVFilter(
-	csv       = geneAgilent,
-	auxiliary = protein)
+    csv       = geneAgilent,
+    auxiliary = protein)
 // Transpose and normalize
 geneT = MatrixTranspose(
-	matrix  = gene,
-	rowName = "SampleID")
+    matrix  = gene,
+    rowName = "SampleID")
 geneNorm = LinearNormalizer(
-	matrix = geneT,
-	method = "z")
+    matrix = geneT,
+    method = "z")
 
 // -- miRNA DATA --
 // Drop miRNAs not in miRBase
 mirnaFilter = CSVFilter(
-	csv            = mirna,
-	auxiliary      = falseMirnas,
-	includeColumns = "",
-	negate         = true)
+    csv            = mirna,
+    auxiliary      = falseMirnas,
+    includeColumns = "",
+    negate         = true)
 // Transpose and normalize miRNA data
 mirnaT = MatrixTranspose(
-	matrix  = mirnaFilter,
-	rowName = "SampleID")
+    matrix  = mirnaFilter,
+    rowName = "SampleID")
 mirnaNorm = LinearNormalizer(
-	matrix = mirnaT,
-	method = "z")
+    matrix = mirnaT,
+    method = "z")
 
 // Density plots of normalized data
 proteinDist = Plot2D(x=proteinNorm, y=proteinNorm, plotType="l",
-	imageType="single", title="Protein z-normalized",
-	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
-	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
-	width="10",height="10",dpCm="48")
+    imageType="single", title="Protein z-normalized",
+    xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+    width="10",height="10",dpCm="48")
 geneDist = Plot2D(x=geneNorm, y=geneNorm, plotType="l",
-	imageType="single", title="gene z-normalized",
-	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
-	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
-	width="10",height="10",dpCm="48")
+    imageType="single", title="gene z-normalized",
+    xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+    width="10",height="10",dpCm="48")
 mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
-	imageType="single", title="mirna z-normalized",
-	xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
-	yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
-	width="10",height="10",dpCm="48")
+    imageType="single", title="mirna z-normalized",
+    xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+    yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+    width="10",height="10",dpCm="48")
 
 // [0,1] scaling and density plots (dont use these!)
 scalingScript = INPUT(path=CODEDIR+"R/scale_regression_data.R")
 proteinScaled = REvaluate(
-	script = scalingScript,
-	table1 = protein,
-	param1 = SIGMA,
-	param2 = "protein")
+    script = scalingScript,
+    table1 = protein,
+    param1 = SIGMA,
+    param2 = "protein")
 geneScaled = REvaluate(
-	script = scalingScript,
-	table1 = gene,
-	param1 = SIGMA,
-	param2 = "gene")
+    script = scalingScript,
+    table1 = gene,
+    param1 = SIGMA,
+    param2 = "gene")
 mirnaScaled = REvaluate(
-	script = scalingScript,
-	table1 = mirna,
-	param1 = SIGMA,
-	param2 = "miRNA")
+    script = scalingScript,
+    table1 = mirna,
+    param1 = SIGMA,
+    param2 = "miRNA")
 
 // Gallery of density plots
 distributions = LatexCombiner(
-	geneDist, proteinDist, mirnaDist,
-	geneScaled.document, proteinScaled.document, mirnaScaled.document)
+    geneDist, proteinDist, mirnaDist,
+    geneScaled.document, proteinScaled.document, mirnaScaled.document)
 distGallery = ImageGallery(force folderRoot = distributions)
 // Dens plots of R-normalized and Anduril-normalized vars seem to match! Yay!
 
@@ -156,31 +144,31 @@ distGallery = ImageGallery(force folderRoot = distributions)
 // -- CLINICAL DATA --
 // Remove TX from sample IDs
 samplesShort = SearchReplace(
-	file    = samples,
-	key00   = "(OSL2.)-(.{4})T.",
-	value00 = "$1-$2")
+    file    = samples,
+    key00   = "(OSL2.)-(.{4})T.",
+    value00 = "$1-$2")
 // Filter down to samples in data
 clinicalFiltered = CSVFilter(
-	csv       = clinicalMessy,
-	auxiliary = samplesShort)
+    csv       = clinicalMessy,
+    auxiliary = samplesShort)
 // Replace empty cells with NA, clean spaces from values, clean column names
 clinicalClean = CSVCleaner(
-	clinicalFiltered,
-	skipQuotes = "Age,Tumorsize..mm.,Number_pos_nodes",
-	trim       = true,
-	naIn       = "\\e",
-	replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
-		"T.status\nTX\npTx\nM.status\nMX\nMx\n" +
-		"N.status\npN1\\(mi\\)\npN1\n",
-	rename     = "OSL2_ID=SampleID,Tumorsize..mm.=Tumorsize,HER.2=HER2,"+
-		"T.status=T stage,M.status=M stage,N.status=N stage")
+    clinicalFiltered,
+    skipQuotes = "Age,Tumorsize..mm.,Number_pos_nodes",
+    trim       = true,
+    naIn       = "\\e",
+    replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
+        "T.status\nTX\npTx\nM.status\nMX\nMx\n" +
+        "N.status\npN1\\(mi\\)\npN1\n",
+    rename     = "OSL2_ID=SampleID,Tumorsize..mm.=Tumorsize,HER.2=HER2,"+
+        "T.status=T stage,M.status=M stage,N.status=N stage")
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
 clinicalLatex = REvaluate(
-	script = clinicalScript,
-	table1 = clinicalClean,
-	param1 = "Age,Tumorsize",
-	param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
-	param3 = "Clinical features for the patients included in the analysis. \\label{clinical-data}")
+    script = clinicalScript,
+    table1 = clinicalClean,
+    param1 = "Age,Tumorsize",
+    param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
+    param3 = "Clinical features for the patients included in the analysis. \\label{clinical-data}")
 
 
 
@@ -192,54 +180,26 @@ clinicalLatex = REvaluate(
 // Collect results from CV var selection simulations
 cvResultScript = INPUT(path=CODEDIR+"R/CV_results.R")
 cvResults = REvaluate(
-	script = cvResultScript,
-	param1 = "/home/viljami/wrk/cvresults",
-	param2 = "0.05")
+    script = cvResultScript,
+    param1 = "/home/viljami/wrk/cvresults",
+    param2 = "0.05,0.1,0.2",
+    param3 = "false")
+varNumHistScript = INPUT(path=CODEDIR+"R/variable_number_histogram.R")
+varNumHistogram = REvaluate(
+    script = varNumHistScript,
+    table1 = cvResults.table)
 cvGallery = ImageGallery(
-	force folderRoot = cvResults.document)
+    force folderRoot = cvResults.document)
 
-
-regressionScriptUni = INPUT(path=CODEDIR+"R/regression_analysis_univariate.R")
-regressionScriptMulti = INPUT(path=CODEDIR+"R/regression_analysis_multivariate.R")
-//regressionModel = CODEDIR+"simple_priors.stan"
-regressionModel = CODEDIR+"stan/shrinkage_prior.stan"
-testGenes = "GSK3B" //BRAF,PTK2
-testMirnas = "hsa.miR.638" //,hsa.let.7d,hsa.miR.193a.3p"
-
-regressionUni = REvaluate(
-	script = regressionScriptUni,
-	table1 = proteinNorm,
-	table2 = geneNorm,
-	table3 = mirnaNorm,
-	param1 = regressionModel,
-	param2 = N_ITER,
-	param3 = N_CHAINS,
-	param4 = MULTICORE,
-	param5 = testGenes,
-	param6 = testMirnas,
-	@enabled = false)
-regressionMulti = REvaluate(
-	script = regressionScriptMulti,
-	table1 = proteinScaled.table,
-	table2 = geneScaled.table,
-	table3 = mirnaScaled.table,
-	param1 = regressionModel,
-	param2 = N_ITER,
-	param3 = N_CHAINS,
-	param4 = MULTICORE,
-	param5 = testGenes,
-	param6 = testMirnas,
-	@bind  = regressionUni,
-	@enabled = false)
 
 // Process results from multivar full model regression on Triton
 resultScript = INPUT(path=CODEDIR+"R/process_multivariate_results.R", @enabled=false)
 regressionResults = REvaluate(
-	script = resultScript,
-	param1 = "/home/viljami/wrk/fullmodelresults/nu3")
+    script = resultScript,
+    param1 = "/home/viljami/wrk/fullmodelresults/nu3")
 regressionResultsNu2 = REvaluate(
-	script = resultScript,
-	param1 = "/home/viljami/wrk/fullmodelresults/nu2")
+    script = resultScript,
+    param1 = "/home/viljami/wrk/fullmodelresults/nu2")
 regressionResultsNu1 = REvaluate(
-	script = resultScript,
-	param1 = "/home/viljami/wrk/fullmodelresults/nu1")
+    script = resultScript,
+    param1 = "/home/viljami/wrk/fullmodelresults/nu1")
