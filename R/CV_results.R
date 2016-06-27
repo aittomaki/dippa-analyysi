@@ -9,7 +9,7 @@
 if(exists("param1")) { # Anduril
     RESULTDIR <- param1
     PLOTDIR <- document.dir
-    U.factor <- as.numeric(unlist(strsplit(param2, ",")))
+    U.f <- as.numeric(unlist(strsplit(param2, ",")))
     redo.cred.int <- as.logical(param3)
     if(redo.cred.int == "") redo.cred.int <- FALSE
 } else { # non-Anduril
@@ -17,10 +17,15 @@ if(exists("param1")) { # Anduril
     PLOTDIR <- "/home/viljami/wrk/cvresults/plots"
     OUTFILE <- "/home/viljami/wrk/cvresults/selected_varnums.csv"
     if(!dir.exists(PLOTDIR)) dir.create(PLOTDIR)
-    U.factor <- c(0.05, 0.1, 0.2)
+    U.f <- c(0.05, 0.1, 0.2)
     redo.cred.int <- FALSE
 }
-# Params for recomputing credible interval for dMLPD
+# Alpha thresholds to try
+lowbounds <- c("0.50", "0.25", "0.10", "0.025")
+alphas <- as.character(1-as.numeric(lowbounds))
+n_a <- length(alphas)
+n_U <- length(U.f)
+# Samples for recomputing credible interval for dMLPD
 n_boot <- 5000
 
 
@@ -39,7 +44,7 @@ resfiles <- resfiles[isort]
 genes <- genes[isort]
 
 # Result matrix, chosen number of vars to include
-varnums <- matrix(0, nrow=length(genes), ncol=4*length(U.factor))
+varnums <- matrix(0, nrow=length(genes), ncol=n_a*n_U)
 
 # Helper function for getting lowest index higher than threshold
 # Gives index-2 i.e. number of miRNAs!
@@ -62,7 +67,7 @@ for (i in 1:length(resfiles)) {
         util$n <- 0:(nrow(util)-1)
 
     # Compute U (=decision threshold for varnum)
-    U <- U.factor*mean(lpd[,1]-lpd.full)
+    U <- U.f*mean(lpd[,1]-lpd.full)
 
     # Recompute credible interval
     if(redo.cred.int) {
@@ -85,12 +90,12 @@ for (i in 1:length(resfiles)) {
         save(util, lpd, lpd.full, se, se.full, U, spath, posterior, params, file=file.path(RESULTDIR,f))
     }
 
-    # Compute selected number of miRNAs!
-    for (j in 1:length(U)) {
-        varnums[i,(j*4-3)] <- get_n_miRNA(util$bb0.50, U[j])
-        varnums[i,(j*4-2)] <- get_n_miRNA(util$bb0.25, U[j])
-        varnums[i,(j*4-1)] <- get_n_miRNA(util$bb0.10, U[j])
-        varnums[i,(j*4)] <- get_n_miRNA(util$bb0.025, U[j])
+    # Compute selected num of miRNAs for all threshold values (alpha and U.f)
+    for (j in 1:n_U) {
+        for (ia in 1:n_a) {
+            cname <- paste("bb", lowbounds[ia], sep="")
+            varnums[i,(j*n_a-(4-ia))] <- get_n_miRNA(util[, cname], U[j])
+        }
     }
 
     # Plot var selection path and utility for current gene
@@ -100,7 +105,7 @@ for (i in 1:length(resfiles)) {
     g <- g + geom_line()
     g <- g + geom_errorbar(aes(ymin=bb0.025, ymax=bb0.975), width=0, color="grey60")
     g <- g + geom_errorbar(aes(ymin=bb0.25, ymax=bb0.75), width=0, color="grey40")
-    g <- g + labs(title=gene, x="N variables", y=bquote(Delta~MLPD))
+    g <- g + labs(title=gene, x="N covariates", y=bquote(Delta~MLPD))
 
     plot.file <- file.path(PLOTDIR, sprintf("%s_CV_path.png",gene))
     ggsave(plot.file, g, height=5, width=7, dpi=600)
@@ -108,7 +113,7 @@ for (i in 1:length(resfiles)) {
 
 # Convert result matrix to df
 varnums <- data.frame(genes, varnums)
-clnms <- paste(rep(paste("U", U.factor, sep=""), each=length(U)), c("a0.50","a0.75","a0.90","a0.975"), sep="_")
+clnms <- paste(rep(paste("U", U.f, sep=""), each=n_a), paste("a", alphas, sep=""), sep="_")
 names(varnums) <- c("gene", clnms)
 varnums <- varnums[order(varnums$gene),]
 
