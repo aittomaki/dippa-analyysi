@@ -18,6 +18,8 @@ library(reshape2)
 library(ggplot2)
 theme_set(theme_bw())
 
+# Convert number of covariates to number of miRNA vars
+varnums[,2:ncol(varnums)] <- varnums[,2:ncol(varnums)] - 1
 
 # Make a histogram of num of vars selected for each threshold
 d <- melt(varnums, id.vars="gene", value.name="N_variables", variable.name="threshold")
@@ -34,6 +36,7 @@ g <- g + geom_histogram(binwidth = 5)
 g <- g + facet_grid(U ~ a, labeller = label_bquote(cols=alpha: .(a), rows=U_f: .(U)))
 g <- g + geom_text(aes(x, y, label=NAlabs, group=NULL), data=numNAs, size=4, color="grey40", vjust="top", hjust="left")
 g <- g + geom_text(aes(x, y0, label=zerolabs, group=NULL), data=numNAs, size=4, color="grey40", vjust="top", hjust="left")
+g <- g + xlab("N miRNA variables")
 # Save plot
 plot.file <- file.path(PLOTDIR, "ZZ_variable_number_hist.pdf")
 ggsave(plot.file, g, height=7, width=9, dpi=600)

@@ -47,12 +47,12 @@ genes <- genes[isort]
 varnums <- matrix(0, nrow=length(genes), ncol=n_a*n_U)
 
 # Helper function for getting lowest index higher than threshold
-# Gives index-2 i.e. number of miRNAs!
+# Gives index-1 = number of covariates = #miRNAs+1(gene)!
 get_n_miRNA <- function(x, thresh) {
     lowest <- NA
     lt <- which(x > thresh)
     if(length(lt) > 0)
-        lowest <- max(min(lt)-2, 0)
+        lowest <- max(min(lt)-1, 0)
     lowest
 }
 
