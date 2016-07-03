@@ -9,6 +9,9 @@
 // INIT
 //==========================================================
 
+// Parameters
+SIGMA = 0.1 //constant for [0,1]-scaling, not used!
+
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
