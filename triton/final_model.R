@@ -36,8 +36,9 @@ P <- as.numeric(prot[samples,g]) #protein expr vector
 G <- as.numeric(gene[samples,g]) #gene expr vector
 M <- mirna[samples,]             #miRNA expr matrix
 # Get chosen number of miRNA variables
+thresh <- "U0.2_a0.9"
 n_vars <- read.delim(file.path(DATADIR, "n_chosen_variables.csv"))
-n_vars <- n_vars[match(g,n_vars[,1]),2]
+n_vars <- n_vars[match(g,n_vars[,1]), thresh]
 if(is.na(n_vars)) n_vars <- 0
 # Cleanup
 rm(prot,gene,mirna,samples)
@@ -52,7 +53,7 @@ n_chains <- 4
 n_proj_samples <- 2000 #num of simulation samples to use for projection prediction
 multicore <- FALSE
 # Save params for reference later
-params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, n_vars=n_vars)
+params <- list(model=model, n=n, d=d, nu=nu, pn=pn, n_iter=n_iter, n_chains=n_chains, n_proj_samples=n_proj_samples, n_vars=n_vars, thresh=thresh)
 
 # Output files
 out_file <- file.path(OUTDIR,sprintf("finalmodel-%d-%s.rda",jobi,g))
@@ -81,7 +82,7 @@ names(r2.gene) <- c("R2","R2.adjusted")
 
 lm.fits[["gene_only"]] <- lm(P ~ G)
 
-if(n_vars > 0) {
+if(n_vars > 1) {
 
     # Fit full model for variable selection
     print("Fitting full model for projection variable selection...")
@@ -103,7 +104,7 @@ if(n_vars > 0) {
 
     # Do the projection predictive variable selection!
     print("Doing projection variable selection...")
-    spath <- lm_fprojsel(w.s, sigma2.s, x, n_vars+2)
+    spath <- lm_fprojsel(w.s, sigma2.s, x, n_vars+1)
 
     # Get the chosen miRNA vars
     chosen.mirnas <- colnames(x)[spath$chosen[3:length(spath$chosen)]]
