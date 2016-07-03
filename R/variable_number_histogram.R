@@ -20,6 +20,7 @@ theme_set(theme_bw())
 
 # Convert number of covariates to number of miRNA vars
 varnums[,2:ncol(varnums)] <- varnums[,2:ncol(varnums)] - 1
+varnums[varnums < 0] <- 0
 
 # Make a histogram of num of vars selected for each threshold
 d <- melt(varnums, id.vars="gene", value.name="N_variables", variable.name="threshold")
@@ -33,7 +34,7 @@ numNAs <- data.frame(x=141, y=56, y0=51, numNAs)
 # Construct plot
 g <- ggplot(d, aes(x=N_variables))
 g <- g + geom_histogram(binwidth = 5)
-g <- g + facet_grid(U ~ a, labeller = label_bquote(cols=alpha: .(a), rows=U_f: .(U)))
+g <- g + facet_grid(U ~ a, labeller = label_bquote(cols=alpha: .(a), rows=gamma: .(U)))
 g <- g + geom_text(aes(x, y, label=NAlabs, group=NULL), data=numNAs, size=4, color="grey40", vjust="top", hjust="left")
 g <- g + geom_text(aes(x, y0, label=zerolabs, group=NULL), data=numNAs, size=4, color="grey40", vjust="top", hjust="left")
 g <- g + xlab("N miRNA variables")
