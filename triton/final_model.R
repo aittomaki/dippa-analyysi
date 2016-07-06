@@ -118,10 +118,11 @@ if(n_vars > 1) {
     # Use the projected weights to do prediction
     w <- spath$w[[n_vars+1]]
     ypred <- x %*% w
-    #r2 <- 1 - colSums((y-ypred)^2)/sum((y-mean(y))^2)
-    resid <- y-ypred
-    r2 <- 1-apply(resid,2,var)/var(y)
+    r2 <- 1 - colSums((y-ypred)^2)/sum((y-mean(y))^2)
     r2.adj <- 1 - (1-r2)*(n-1)/(n-n_vars-1)
+    resid <- y-ypred
+    r2.var <- 1-apply(resid,2,var)/var(y)
+    r2.var.adj <- 1 - (1-r2.var)*(n-1)/(n-n_vars-1)
 
     # Save summary of marginal posterior distributions of full model
     sry <- summary(fit, probs=c(.025,.1,.25,.5,.75,.9,.975))$summary
@@ -133,7 +134,7 @@ if(n_vars > 1) {
     lm.fits[["full_model"]] <- lm(my.formula, data=as.data.frame(x))
 
     # Save results
-    save(chosen.mirnas, posterior, e, r2, r2.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
+    save(chosen.mirnas, posterior, e, r2, r2.adj, r2.var, r2.var.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
 } else {
     # Save only gene model
     save(fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
