@@ -38,7 +38,7 @@ lm_fprojsel <- function(w, sigma2, x, MAX_VARS) {
 
 	# forward variable selection using projection
     kl <- rep(0,MAX_VARS)
-    sigma2p <- rep(0,MAX_VARS)
+    sigma2p <- matrix(0, nrow=MAX_VARS, ncol=length(sigma2))
     wp <- list()
 	d = dim(x)[2]
 	chosen <- 1:2 # chosen variables, start from the model with the intercept and gene term
@@ -66,9 +66,9 @@ lm_fprojsel <- function(w, sigma2, x, MAX_VARS) {
 		notchosen <- setdiff(1:d, chosen)
 
 		kl[k] <- val[imin]
-		proj <- lm_proj(w,sigma2,x,imin)
+		proj <- lm_proj(w,sigma2,x,chosen)
         wp[[k]] <- Matrix(proj$w)
-        sigma2p <- proj$sigma2
+        sigma2p[k,] <- proj$sigma2
 	}
 	return(list(chosen=chosen, kl=kl, sigma2=sigma2p, w=wp))
 }
