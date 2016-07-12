@@ -6,6 +6,8 @@
 
 
 
+
+
 // INIT
 //==========================================================
 
@@ -25,8 +27,11 @@ samples = INPUT(path=DATADIR+"samples.csv")
 
 
 
+
+
 // PREPROCESS
 //==========================================================
+
 
 // -- PROTEIN DATA --
 // Expand a AKT1/2/3 type proteins
@@ -58,6 +63,7 @@ proteinNorm = LinearNormalizer(
     matrix = proteinT,
     method = "z")
 
+
 // -- mRNA DATA --
 // Convert mRNA probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
@@ -86,6 +92,7 @@ geneNorm = LinearNormalizer(
     matrix = geneT,
     method = "z")
 
+
 // -- miRNA DATA --
 // Drop miRNAs not in miRBase
 mirnaFilter = CSVFilter(
@@ -100,6 +107,7 @@ mirnaT = MatrixTranspose(
 mirnaNorm = LinearNormalizer(
     matrix = mirnaT,
     method = "z")
+
 
 // Density plots of normalized data
 proteinDist = Plot2D(x=proteinNorm, y=proteinNorm, plotType="l",
@@ -163,15 +171,16 @@ clinicalClean = CSVCleaner(
     replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
         "T.status\nTX\npTx\nM.status\nMX\nMx\n" +
         "N.status\npN1\\(mi\\)\npN1\n",
-    rename     = "OSL2_ID=SampleID,Tumorsize..mm.=Tumorsize,HER.2=HER2,"+
+    rename     = "OSL2_ID=SampleID,Age=Age (years),Tumorsize..mm.=Tumorsize (mm),HER.2=HER2,"+
         "T.status=T stage,M.status=M stage,N.status=N stage")
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
 clinicalLatex = REvaluate(
     script = clinicalScript,
     table1 = clinicalClean,
-    param1 = "Age,Tumorsize",
+    param1 = "Age (years),Tumorsize (mm)",
     param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
-    param3 = "Clinical features for the patients included in the analysis. \\label{clinical-data}")
+    param3 = "Clinical features of the 280 patients and 283 tumor samples included in the analysis. "+
+        "NA = not available. \\label{clinical-data}")
 
 
 
@@ -195,7 +204,7 @@ cvGallery = ImageGallery(
     force folderRoot = cvResults.document)
 
 
-// Process results from multivar full model regression on Triton
+// Process results from multivar full model regression on Triton (DO NOT USE THESE!)
 resultScript = INPUT(path=CODEDIR+"R/process_multivariate_results.R", @enabled=false)
 regressionResults = REvaluate(
     script = resultScript,
@@ -206,3 +215,15 @@ regressionResultsNu2 = REvaluate(
 regressionResultsNu1 = REvaluate(
     script = resultScript,
     param1 = "/home/viljami/wrk/fullmodelresults/nu1")
+
+
+
+
+
+
+
+// OUTPUT
+//==========================================================
+
+OUTPUT(cvResults.table)
+
