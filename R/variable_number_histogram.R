@@ -6,7 +6,7 @@ if(exists("param1")) { # Anduril
 } else { # non-Anduril
     WRKDIR <- Sys.getenv("WRKDIR")
     DATADIR <- file.path(WRKDIR,"dippa-data")
-    in.file <- file.path(DATADIR, "n_selected_variables")
+    in.file <- file.path(DATADIR, "n_selected_variables.csv")
     varnums <- read.delim(in.file)
     PLOTDIR <- "/home/viljami/wrk/cvresults/plots"
     if(!dir.exists(PLOTDIR)) dir.create(PLOTDIR)

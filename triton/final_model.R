@@ -134,7 +134,7 @@ if(n_vars > 1) {
     lm.fits[["full_model"]] <- lm(my.formula, data=as.data.frame(x))
 
     # Save results
-    save(chosen.mirnas, posterior, e, r2, r2.adj, r2.var, r2.var.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
+    save(chosen.mirnas, posterior, e, resid, r2, r2.adj, r2.var, r2.var.adj, spath, fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)
 } else {
     # Save only gene model
     save(fit.gene, posterior.gene, r2.gene, lm.fits, params, file=out_file)

@@ -203,7 +203,33 @@ varNumHistogram = REvaluate(
 cvGallery = ImageGallery(
     force folderRoot = cvResults.document)
 
-
+// Collect results from final model simulations
+finalModelScript = INPUT(path=CODEDIR+"R/final_model_results.R")
+finalModelResults = REvaluate(
+    script = finalModelScript,
+    param1 = "/home/viljami/wrk/finalmodel_results",
+    param2 = "U0.2_a0.9")
+finalModelClean = CSVCleaner(
+    original     = finalModelResults.table,
+    numberFormat = "R2_gene=#0.000\nR2_gene_adjusted=#0.000\nR2_fullmodel=#0.000\nR2_fullmodel_adjusted=#0.000\n",
+    rename       = "gene=Gene,R2_gene_adjusted=Radj2_gene,R2_fullmodel=R2_full,R2_fullmodel_adjusted=Radj2_full,"+
+                   "full_model_found=Model found,gene_significant=Gene significant,"+
+                   "n_miRNAs=N miRNAs,chosen_miRNAs=Chosen miRNAs,n_significant_miRNAs=N significant miRNAs,"+
+                   "significant_miRNAs=Significant miRNAs",//,significant_miRNA_inds=Significant miRNA order",
+    columns = "gene,R2_gene,R2_fullmodel,R2_gene_adjusted,R2_fullmodel_adjusted,full_model_found,gene_significant,"+
+              "n_miRNAs,n_significant_miRNAs,chosen_miRNAs,significant_miRNAs")
+finalModelHTML = HTMLTable(
+    data = finalModelClean.table)
+finalModelTable = CSV2Latex(
+    tabledata = finalModelClean.table,
+    caption   = "Properties of the final fitted models. \\label{table:final-models}",
+    columns   = "Gene,R2_gene,R2_full,Radj2_gene,Radj2_full,Model found,Gene significant,"+
+                "N miRNAs,N significant miRNAs,Significant miRNAs",
+    colFormat = "lrrrrccrrp{5cm}",
+    rename    = "R2_gene=$R^2_{gene},R2_full=$R^2_{full}$,Radj2_gene=$\\bar{R}^2_{gene}$,Radj2_full=$\\bar{R}^2_{full}$,"+
+                "N miRNAs=N_{miRNA},N significant miRNAs=N_{signif miRNA},Significant miRNAs=Signif miRNAs",
+    evenColor = "1,1,1")
+    
 // Process results from multivar full model regression on Triton (DO NOT USE THESE!)
 resultScript = INPUT(path=CODEDIR+"R/process_multivariate_results.R", @enabled=false)
 regressionResults = REvaluate(
@@ -226,4 +252,4 @@ regressionResultsNu1 = REvaluate(
 //==========================================================
 
 OUTPUT(cvResults.table)
-
+OUTPUT(finalModelHTML.table)
