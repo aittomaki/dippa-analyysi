@@ -171,16 +171,28 @@ clinicalClean = CSVCleaner(
     replace    = "Tumorsize..mm.\n(\\d+).*\n$1\n" +
         "T.status\nTX\npTx\nM.status\nMX\nMx\n" +
         "N.status\npN1\\(mi\\)\npN1\n",
-    rename     = "OSL2_ID=SampleID,Age=Age (years),Tumorsize..mm.=Tumorsize (mm),HER.2=HER2,"+
+    rename     = "OSL2_ID=SampleID,Age=Age (years),Tumorsize..mm.=Tumor size (mm),HER.2=HER2,"+
         "T.status=T stage,M.status=M stage,N.status=N stage")
+clinicalCaptionNominal = """
+Categorial clinical features of the 280 patients and 283 tumor samples included in the analysis.
+Table compiled from original data kindly provided by Aure et al.
+CIS = carcinoma in situ, ER = estrogen receptor, PR = progesterone receptor,
+HER2 = human epidermal growth factor receptor 2.
+\\label{clinical-data-nominal}
+"""
+clinicalCaptionNumeric = """
+Numerical clinical features of the 280 patients and 283 tumor samples included in the analysis.
+Table compiled from original data kindly provided by Aure et al.
+\\label{clinical-data-numeric}
+"""
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
 clinicalLatex = REvaluate(
     script = clinicalScript,
     table1 = clinicalClean,
-    param1 = "Age (years),Tumorsize (mm)",
+    param1 = "Age (years),Tumor size (mm)",
     param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
-    param3 = "Clinical features of the 280 patients and 283 tumor samples included in the analysis. "+
-        "NA = not available. \\label{clinical-data}")
+    param3 = clinicalCaptionNumeric,
+    param4 = clinicalCaptionNominal)
 
 
 
@@ -238,27 +250,36 @@ finalModelGallery = ImageGallery(force folderRoot = finalModelPlots)
 
 
 finalModelClean = CSVCleaner(
-    original     = finalModels_a0_5_g0_2.table,
-    numberFormat = "R2_gene=#0.000\nR2_gene_adj=#0.000\nR2_full=#0.000\nR2_full_adj=#0.000\n",
-    rename       = "gene=Gene,R2_gene_adj=R2adj_gene,R2_full_adj=R2adj_full,"+
-                   "full_model_found=Model found,gene_significant=Gene significant,"+
-                   "n_miRNAs=N miRNAs,chosen_miRNAs=Chosen miRNAs,n_significant_miRNAs=N significant miRNAs,"+
-                   "significant_miRNAs=Significant miRNAs",//,significant_miRNA_inds=Significant miRNA order",
-    columns = "gene,R2_gene,R2_full,R2_gene_adj,R2_full_adj,full_model_found,gene_significant,"+
-              "n_miRNAs,n_significant_miRNAs,chosen_miRNAs,significant_miRNAs")
+    force original = finalModels_a0_5_g0_2.optOut1,
+    rename         = "gene=Gene,n_miRNAs=N miRNAs,significant_miRNAs=Significant miRNAs",
+    columns        = "gene,R2_gene,R2_full,n_miRNAs,significant_miRNAs")
+    //numberFormat = "R2_gene=#0.000\nR2_gene_adj=#0.000\nR2_full=#0.000\nR2_full_adj=#0.000\n",
+    //columns        = "gene,R2_gene,R2_full,R2adj_gene,R2adj_full,n_miRNAs,significant_miRNAs")
 
 finalModelHTML = HTMLTable(
     data = finalModelClean.table)
 
+finalModelCaption = """
+Properties of the final fitted models. Missing values for N miRNAs indicate full model was not found,
+zeros indicate no miRNA variables were chosen for full model. R$^2$ was not computed for models with no
+miRNA variables.
+R2\\_gene = coefficient of determination for model with only gene variable (adjusted R$^2$),
+R2\\_full = R$^2$ for full model obtained with PPVS (adjusted R$^2$),
+N miRNAs = number of miRNA variables in full model (number of significant miRNA variables, 95\\% credible interval).
+$^{\\ast}$gene expression variable is significant (95\\% credible interval).
+\\label{table:final-models}
+"""
 finalModelTable = CSV2Latex(
     tabledata = finalModelClean.table,
-    caption   = "Properties of the final fitted models. \\label{table:final-models}",
-    columns   = "Gene,R2_gene,R2_full,R2adj_gene,R2adj_full,Model found,Gene significant,"+
-                "N miRNAs,N significant miRNAs,Significant miRNAs",
-    colFormat = "lrrrrccrrp{5cm}",
-    rename    = "R2_gene=$R^2_{gene},R2_full=$R^2_{full}$,R2adj_gene=$\\bar{R}^2_{gene}$,R2adj_full=$\\bar{R}^2_{full}$,"+
-                "N miRNAs=N_{miRNA},N significant miRNAs=N_{signif miRNA},Significant miRNAs=Signif miRNAs",
-    evenColor = "1,1,1")
+    caption   = finalModelCaption,
+    colFormat = "lllrp{7cm}",
+    numberFormat = "R2_gene=RAW_LATEX,R2_full=RAW_LATEX",
+    columns   = "Gene,R2_gene,R2_full,N miRNAs,Significant miRNAs",
+    //columns   = "Gene,R2_gene,R2_full,R2adj_gene,R2adj_full,N miRNAs,Significant miRNAs",
+    //rename    = "R2_gene=$R^2_{gene},R2_full=$R^2_{full}$,R2adj_gene=$\\bar{R}^2_{gene}$,R2adj_full=$\\bar{R}^2_{full}$,"+
+    //            "N miRNAs=N_{miRNA},Significant miRNAs=Signif miRNAs",
+    evenColor = "1,1,1",
+    listCols  = "Significant miRNAs")
 
 
 

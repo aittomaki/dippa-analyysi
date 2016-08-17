@@ -5,12 +5,25 @@ library(xtable)
 
 numerical_cols <- unlist(strsplit(param1, ","))
 nominal_cols <- unlist(strsplit(param2, ","))
-caption <- param3
+numeric_cap <- param3
+nominal_cap <- param4
+
+fontsize <- "\\small"
 
 table1 <- table1[,c(numerical_cols,nominal_cols)]
 
 # Transform Grade variable
 table1[,"Grade"] <- c("I","II","III","IV")[table1[,"Grade"]]
+# Clean some variable values
+table1$Histology <- revalue(table1$Histology, c("DCIS"="Ductal CIS"))
+table1$Histology <- revalue(table1$Histology, c("PapillaryCIS"="Papillary CIS"))
+table1$Multifocality <- revalue(table1$Multifocality, c("SingleTumor"="Single tumor"))
+table1$ER <- revalue(table1$ER, c("neg"="negative"))
+table1$ER <- revalue(table1$ER, c("pos"="positive"))
+table1$PR <- revalue(table1$PR, c("neg"="negative"))
+table1$PR <- revalue(table1$PR, c("pos"="positive"))
+table1$HER2 <- revalue(table1$HER2, c("neg"="negative"))
+table1$HER2 <- revalue(table1$HER2, c("pos"="positive"))
 
 
 ### Function for pretty clinical tables
@@ -41,7 +54,7 @@ prettyTable <- function(x, num_cols=NULL) {
     d[,1] <- ifelse(duplicated(d[,1]), "", d[,1])
     # missing instead of NA
     d[,2] <- as.character(d[,2])
-    d[is.na(d[,2]),2] <- "NA"
+    d[is.na(d[,2]),2] <- "missing"
     # Better column names
     names(d) <- c("Variable", "Level", "Count", "Fraction")
 
@@ -51,18 +64,18 @@ prettyTable <- function(x, num_cols=NULL) {
 
 tables <- prettyTable(table1, num_cols=numerical_cols)
 
-# Make a LaTeX fragment of first table piece
-ltable1 <- xtable(tables[[1]], caption=caption, align="lllrr", digits=0)
-ltable1 <- print(ltable1, caption.placement = "top", print.results=F, include.rownames=F)
+# Make a LaTeX fragment of numeric table
+numtable <- xtable(tables[[1]], caption=numeric_cap, align="lllrr", digits=0)
+numtable <- print(numtable, size=fontsize, caption.placement="top", print.results=F, include.rownames=F)
 # Remove table ending
-ltable1 <- sub("   \\hline\n\\end{tabular}\n\\end{table}\n","", ltable1, fixed=T)
+comb.ltable1 <- sub("   \\hline\n\\end{tabular}\n\\end{table}\n","", numtable, fixed=T)
 
-# Make a LaTeX fragment of second table piece
-ltable2 <- xtable(tables[[2]], digits=0)
-ltable2 <- print(ltable2, print.results=F, include.rownames=F)
+# Make a LaTeX fragment of nominal table
+nomtable <- xtable(tables[[2]], caption=nominal_cap, align="lllrr", digits=0)
+nomtable <- print(nomtable, size=fontsize, caption.placement="top", print.results=F, include.rownames=F)
 # Remove table beginning
-ltable2 <- sub("\\begin{table}[ht]\n\\centering\n\\begin{tabular}{llll}\n","", ltable2, fixed=T)
+comb.ltable2 <- sub("\\begin{table}[ht]\n\\centering\n\\begin{tabular}{lllrr}\n","", nomtable, fixed=T)
 
-document.out <- c(ltable1, ltable2)
+document.out <- c(numtable, "\n\n", nomtable)
 
 table.out <- tables[[2]]
