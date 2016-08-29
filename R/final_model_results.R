@@ -20,16 +20,19 @@ if(exists("param1")) { # Anduril
     thresh    <- param2 # e.g. U0.2_a0.9
     PLOTDIR   <- document.dir
     LATEX.CSV <- get.output(cf,'optOut1')
+    COEFS.CSV <- get.output(cf,'optOut2')
     cv.chosen.vars <- table1
     prot           <- table2
     gene           <- table3
     mirna          <- table4
     rm(optOut1)
+    rm(optOut2)
 } else { # non-Anduril
     RESULTDIR <- "/home/viljami/wrk/finalmodel_results"
     PLOTDIR   <- "/home/viljami/wrk/finalmodel_results/plots"
     OUTFILE   <- "/home/viljami/wrk/finalmodel_results/foo.csv"
     LATEX.CSV <- "/home/viljami/wrk/finalmodel_results/ltable.csv"
+    COEFS.CSV <- "/home/viljami/wrk/finalmodel_results/coefs.csv"
     WRKDIR    <- Sys.getenv("WRKDIR")
     cv.chosen.vars <- read.delim(file.path(WRKDIR,"dippa-data","n_chosen_variables.csv"))
     prot    <- read.delim(file.path(WRKDIR,"dippa-data","protein_normalized.csv"))
@@ -59,12 +62,14 @@ genes <- genes[gord]
 resfiles <- resfiles[gord]
 rm(gord)
 
-# Result data frame
+# Result table data frame
 d <- data.frame(gene=genes, R2_gene=0, R2adj_gene=0,
                 R2_full=NA, R2adj_full=NA, full_model_found="",
                 gene_only_significant="", gene_full_significant="",
                 n_miRNAs=0, chosen_miRNAs="",
                 n_significant_miRNAs=0, significant_miRNAs="", significant_miRNA_inds="", stringsAsFactors=F)
+# Data frame for coefs for all models (compile as a list)
+d.coefs <- list()
 
 for (i in 1:length(resfiles)) {
 #for (i in 1:2) {
@@ -130,9 +135,13 @@ for (i in 1:length(resfiles)) {
             d[i,"R2adj_full"] <- median(R2.adj)
 
             # Posterior summary for projected weights
-            postsum <- t(apply(w, 1, quantile, probs=c(0.025,0.1,0.5,0.9,0.975)))
+            postsum <- t(apply(w, 1, quantile, probs=c(0.025,0.1,0.25,0.5,0.75,0.9,0.975)))
             rownames(postsum) <- c("w0", "gene", mirna_names)[1:(n_vars+1)]
+            sdev <- as.vector(apply(w, 1, sd))
+            wgt <- as.vector(apply(w, 1, function(x) {ifelse(median(x)>0, sum(x>0)/length(x), sum(x<0)/length(x))}))
             signifs <- sign(postsum[,"2.5%"]) == sign(postsum[,"97.5%"])
+            cfs <- data.frame(gene=g, variable=rownames(postsum), median=postsum[,"50%"], IQR=postsum[,"75%"]-postsum[,"25%"], sd=sdev, significant=ifelse(signifs, "yes", "no"), weight=wgt)
+            d.coefs <- c(d.coefs, list(cfs))
             if(n_vars > 0) {
                 d[i,"gene_full_significant"] <- ifelse(signifs["gene"], "yes", "no")
                 if(n_vars > 1) {
@@ -153,8 +162,11 @@ table.out <- d
 if(!exists("param1")) { # non-Anduril
     write.table(table.out, file=OUTFILE, sep="\t", row.names=F)
 }
+d.coefs <- do.call(rbind, d.coefs)
+write.table(d.coefs, file=COEFS.CSV, sep="\t", row.names=F)
 
-# Make a version of the table for latex
+
+# Make a version of the table for latex in Anduril
 numf <- paste0("%.",SIGDIGS,"f")
 dlat <- d[,c("gene","R2_gene","R2_full","n_miRNAs","significant_miRNAs")]
 # Combine n_miRNAs and n_significant_miRNAs
@@ -169,33 +181,33 @@ dlat$R2_full[nonNA] <- paste0(sprintf(numf, d$R2_full), " (", sprintf(numf, d$R2
 write.table(dlat, file=LATEX.CSV, sep="\t", row.names=F)
 
 # Make a plot of var num vs R2 and num signif
-#dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full, R2_full_adj))
-dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full))
-dm$delta_R2adj <- d$R2adj_full - d$R2adj_gene
-dm <- melt(dm, id.vars=c("gene","n_miRNAs"))
-#dm$adjusted[dm$variable == "R2_full"] <- "no"
-#dm$adjusted[dm$variable == "R2_full_adj"] <- "yes"
-#dm$adjusted[dm$variable == "n_significant_miRNAs"] <- "NA"
-#dm$variable[dm$variable == "R2_full_adj"] <- "R2_full"
-# Pretty the variable names
-dm$variable <- revalue(dm$variable, c(
-    n_significant_miRNAs = "N~significant~miRNAs",
-    R2_full = "R[full]^2",
-    delta_R2adj = "Delta~bar(R)^2"
-))
-g <- ggplot(dm, aes(x = n_miRNAs, y = value))#, color=adjusted, size=adjusted))
-g <- g + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
-g <- g + geom_ribbon(stat="smooth", method="loess", alpha=0.05)##, aes(color=NULL, group=adjusted))
-g <- g + facet_grid(variable ~ ., scales = "free", switch="y", labeller=label_parsed)
-#g <- g + scale_size_manual(values=c(1,1,0.5), guide=F)
-#g <- g + scale_color_discrete(name="R2 adjusted", breaks=c("no","yes"))
-#g <- g + ggtitle(parse(text=sub("U(.*)_a(.*)", "alpha:\\2~~~gamma:\\1", thresh)))
-g <- g + labs(x="N miRNAs", y=NULL)
-g <- g + theme(strip.text.y = element_text(size = 12))
-plot.file <- file.path(PLOTDIR, sprintf("n_miRNAs_R2s_%s.pdf", thresh))
-ggsave(plot.file, g, height=7, width=9, dpi=600)
+# #dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full, R2_full_adj))
+# dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full))
+# dm$delta_R2adj <- d$R2adj_full - d$R2adj_gene
+# dm <- melt(dm, id.vars=c("gene","n_miRNAs"))
+# #dm$adjusted[dm$variable == "R2_full"] <- "no"
+# #dm$adjusted[dm$variable == "R2_full_adj"] <- "yes"
+# #dm$adjusted[dm$variable == "n_significant_miRNAs"] <- "NA"
+# #dm$variable[dm$variable == "R2_full_adj"] <- "R2_full"
+# # Pretty the variable names
+# dm$variable <- revalue(dm$variable, c(
+#     n_significant_miRNAs = "N~significant~miRNAs",
+#     R2_full = "R[full]^2",
+#     delta_R2adj = "Delta~bar(R)^2"
+# ))
+# g <- ggplot(dm, aes(x = n_miRNAs, y = value))#, color=adjusted, size=adjusted))
+# g <- g + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
+# g <- g + geom_ribbon(stat="smooth", method="loess", alpha=0.05)##, aes(color=NULL, group=adjusted))
+# g <- g + facet_grid(variable ~ ., scales = "free", switch="y", labeller=label_parsed)
+# #g <- g + scale_size_manual(values=c(1,1,0.5), guide=F)
+# #g <- g + scale_color_discrete(name="R2 adjusted", breaks=c("no","yes"))
+# #g <- g + ggtitle(parse(text=sub("U(.*)_a(.*)", "alpha:\\2~~~gamma:\\1", thresh)))
+# g <- g + labs(x="N miRNAs", y=NULL)
+# g <- g + theme(strip.text.y = element_text(size = 12))
+# plot.file <- file.path(PLOTDIR, sprintf("n_miRNAs_R2s_%s.pdf", thresh))
+# ggsave(plot.file, g, height=7, width=9, dpi=600)
 
-# Make a latex table version
+# Make a latex table version in R (NOT USED)
 dltx <- dlat
 #colnames(dltx) <- c("Gene","$R^2_{gene}$","$R^2_{full}$","$\\bar{R}^2_{gene}$","$\\bar{R}^2_{full}$","$N_{miRNA}$","Chosen miRNAs")
 #ltable <- xtable(dltx, align="llrrrrrp{5cm}", digits=SIGDIGS, caption="Properties of final regression models.")
