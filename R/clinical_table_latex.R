@@ -68,14 +68,16 @@ tables <- prettyTable(table1, num_cols=numerical_cols)
 numtable <- xtable(tables[[1]], caption=numeric_cap, align="lllrr", digits=0)
 numtable <- print(numtable, size=fontsize, caption.placement="top", print.results=F, include.rownames=F)
 # Remove table ending
-comb.ltable1 <- sub("   \\hline\n\\end{tabular}\n\\end{table}\n","", numtable, fixed=T)
+comb.ltable1 <- sub("\\end{tabular}\n\\endgroup\n\\end{table}\n","", numtable, fixed=T)
 
 # Make a LaTeX fragment of nominal table
-nomtable <- xtable(tables[[2]], caption=nominal_cap, align="lllrr", digits=0)
+#nomtable <- xtable(tables[[2]], caption=nominal_cap, align="lllrr", digits=0)
+nomtable <- xtable(tables[[2]], align="lllrr", digits=0)
 nomtable <- print(nomtable, size=fontsize, caption.placement="top", print.results=F, include.rownames=F)
 # Remove table beginning
-comb.ltable2 <- sub("\\begin{table}[ht]\n\\centering\n\\begin{tabular}{lllrr}\n","", nomtable, fixed=T)
+comb.ltable2 <- sub("\\begin{table}[ht]\n\\centering\n\\begingroup\\small\n\\begin{tabular}{llrr}\n","", nomtable, fixed=T)
 
-document.out <- c(numtable, "\n\n", nomtable)
+#document.out <- c(numtable, "\n\n", nomtable)
+document.out <- c(comb.ltable1, "\n", comb.ltable2)
 
 table.out <- tables[[2]]
