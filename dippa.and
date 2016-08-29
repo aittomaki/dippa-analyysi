@@ -185,14 +185,20 @@ Numerical clinical features of the 280 patients and 283 tumor samples included i
 Table compiled from original data kindly provided by Aure et al.
 \\label{clinical-data-numeric}
 """
+clinicalCaption = """
+Clinical features of the 283 tumor samples included in the analysis.
+Table compiled from original data kindly provided by Aure et al.
+CIS = carcinoma in situ, ER = estrogen receptor, PR = progesterone receptor,
+HER2 = human epidermal growth factor receptor 2.
+\\label{clinical-data-nominal}
+"""
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
 clinicalLatex = REvaluate(
     script = clinicalScript,
     table1 = clinicalClean,
-    param1 = "Age (years),Tumor size (mm)",
+    param1 = "Tumor size (mm)",
     param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
-    param3 = clinicalCaptionNumeric,
-    param4 = clinicalCaptionNominal)
+    param3 = clinicalCaption)
 
 
 
@@ -201,7 +207,7 @@ clinicalLatex = REvaluate(
 // BAYESIAN REGRESSION ANALYSIS
 //==========================================================
 
-//-- Collect results from CV var selection simulations
+// Collect results from CV var selection simulations
 cvResultScript = INPUT(path=CODEDIR+"R/CV_results.R")
 cvResults = REvaluate(
     script = cvResultScript,
@@ -218,7 +224,7 @@ cvGallery = ImageGallery(
     force folderRoot = cvResults.document)
 
 
-//-- Collect results from final model simulations
+// Collect results from final model simulations
 finalModelScript = INPUT(path=CODEDIR+"R/final_model_results.R")
 finalModels_a0_5_g0_2 = REvaluate(
     script = finalModelScript,
@@ -244,9 +250,14 @@ finalModels_a0_9_g0_2 = REvaluate(
     table2 = proteinNorm,
     table3 = geneNorm,
     table4 = mirnaNorm)
-finalModelPlots = LatexCombiner(
-    finalModels_a0_5_g0_2.document, finalModels_a0_75_g0_2.document, finalModels_a0_9_g0_2.document)
-finalModelGallery = ImageGallery(force folderRoot = finalModelPlots)
+// finalModelPlots = LatexCombiner(
+//    finalModels_a0_5_g0_2.document, finalModels_a0_75_g0_2.document, finalModels_a0_9_g0_2.document)
+// finalModelGallery = ImageGallery(force folderRoot = finalModelPlots)
+finalPlotsScript = INPUT(path=CODEDIR+"R/final_model_plots.R")
+finalPlots = REvaluate(
+    script = finalPlotsScript,
+    table1 = finalModels_a0_9_g0_2.table,
+    table2 = finalModels_a0_9_g0_2.optOut2)
 
 
 finalModelClean = CSVCleaner(
