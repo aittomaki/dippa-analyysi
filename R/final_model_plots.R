@@ -5,7 +5,8 @@ library(reshape2)
 library(plyr)
 library(dplyr)
 library(gridExtra)
-theme_set(theme_bw())
+library(cowplot)
+#theme_set(theme_bw())
 
 d       <- table1
 d.coefs <- table2
@@ -36,10 +37,23 @@ g <- g + facet_grid(variable ~ ., scales = "free", switch="y", labeller=label_pa
 #g <- g + scale_size_manual(values=c(1,1,0.5), guide=F)
 #g <- g + scale_color_discrete(name="R2 adjusted", breaks=c("no","yes"))
 #g <- g + ggtitle(parse(text=sub("U(.*)_a(.*)", "alpha:\\2~~~gamma:\\1", thresh)))
-g <- g + labs(x="N miRNAs", y=NULL)
+g <- g + labs(x="N miRNAs", y=NULL) + background_grid(major = "xy", minor = "none")
 g <- g + theme(strip.text.y = element_text(size = 12))
 plot.file <- file.path(PLOTDIR, "n_miRNAs_R2s.pdf")
 ggsave(plot.file, g, height=7, width=9, dpi=600)
+
+g1 <- ggplot(d1, aes(x = n_miRNAs, y = n_significant_miRNAs))
+g1 <- g1 + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
+g1 <- g1 + geom_ribbon(stat="smooth", method="loess", alpha=0.05)
+g2 <- ggplot(d1, aes(x = n_miRNAs, y = R2_full))
+g2 <- g2 + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
+g2 <- g2 + geom_ribbon(stat="smooth", method="loess", alpha=0.05)
+g3 <- ggplot(d1, aes(x = n_miRNAs, y = delta_R2adj))
+g3 <- g3 + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
+g3 <- g3 + geom_ribbon(stat="smooth", method="loess", alpha=0.05)
+plot.file <- file.path(PLOTDIR, "n_miRNAs_R2s_cow.pdf")
+g123 <- plot_grid(g1, g2, g3, align = "v", ncol=1)
+save_plot(plot.file, g123, ncol=1)
 
 
 
@@ -48,20 +62,22 @@ ggsave(plot.file, g, height=7, width=9, dpi=600)
 d1$fraction_sign_miRNAs <- d1$n_significant_miRNAs / d1$n_miRNAs
 g1 <- ggplot(d1, aes(x = delta_R2adj, y = fraction_sign_miRNAs))
 g1 <- g1 + geom_point()
-g1 <- g1 + labs(x=parse(text="Delta~bar(R)^2"), y="Fraction of significant miRNAs")
+g1 <- g1 + labs(x=NULL, y="Fraction of significant miRNAs")
 g2 <- ggplot(d1, aes(x = R2_full, y = fraction_sign_miRNAs))
 g2 <- g2 + geom_point()
-g2 <- g2 + labs(x=parse(text="R[full]^2"), y="Fraction of significant miRNAs")
+g2 <- g2 + labs(x=NULL, y=NULL)
 g3 <- ggplot(d1, aes(x = delta_R2adj, y = n_significant_miRNAs))
 g3 <- g3 + geom_point()
 g3 <- g3 + labs(x=parse(text="Delta~bar(R)^2"), y="N significant miRNAs")
 g4 <- ggplot(d1, aes(x = R2_full, y = n_significant_miRNAs))
 g4 <- g4 + geom_point()
-g4 <- g4 + labs(x=parse(text="R[full]^2"), y="N significant miRNAs")
+g4 <- g4 + labs(x=parse(text="R[full]^2"), y=NULL)
 plot.file <- file.path(PLOTDIR, "DeltaR2adj_vs_frac_sign_miRNAs.pdf")
 #ggsave(plot.file, g, height=7, width=9, dpi=600)
-ggsave(plot.file, arrangeGrob(g1, g2, g3, g4, ncol=2), height=7, width=9, dpi=400)
-
+#ggsave(plot.file, arrangeGrob(g1, g2, g3, g4, ncol=2), height=7, width=9, dpi=400)
+g1234 <- plot_grid(g1, g2, g3, g4, ncol=2, align="hv")
+#save_plot(plot.file, g1234, ncol=2)
+ggsave(plot.file, g1234, height=7, width=9)
 
 
 
