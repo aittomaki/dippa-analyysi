@@ -1,4 +1,5 @@
 
+## INIT ####
 library(ggplot2)
 library(reshape2)
 library(plyr)
@@ -12,11 +13,12 @@ PLOTDIR <- document.dir
 
 
 
-## Plot chosen var num vs R2 and num signif
+## Plot chosen var num vs R2 and num signif ####
+
 #dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full, R2_full_adj))
-dm <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full))
-dm$delta_R2adj <- d$R2adj_full - d$R2adj_gene
-dm <- melt(dm, id.vars=c("gene","n_miRNAs"))
+d1 <- subset(d, select=c(gene, n_miRNAs, n_significant_miRNAs, R2_full))
+d1$delta_R2adj <- d$R2adj_full - d$R2adj_gene
+dm <- melt(d1, id.vars=c("gene","n_miRNAs"))
 #dm$adjusted[dm$variable == "R2_full"] <- "no"
 #dm$adjusted[dm$variable == "R2_full_adj"] <- "yes"
 #dm$adjusted[dm$variable == "n_significant_miRNAs"] <- "NA"
@@ -41,10 +43,32 @@ ggsave(plot.file, g, height=7, width=9, dpi=600)
 
 
 
+## Plot delta R2adj vs fraction dignificant miRNAs ####
 
-## Plot magnitude of miRNA versus IQR and SD
+d1$fraction_sign_miRNAs <- d1$n_significant_miRNAs / d1$n_miRNAs
+g1 <- ggplot(d1, aes(x = delta_R2adj, y = fraction_sign_miRNAs))
+g1 <- g1 + geom_point()
+g1 <- g1 + labs(x=parse(text="Delta~bar(R)^2"), y="Fraction of significant miRNAs")
+g2 <- ggplot(d1, aes(x = R2_full, y = fraction_sign_miRNAs))
+g2 <- g2 + geom_point()
+g2 <- g2 + labs(x=parse(text="R[full]^2"), y="Fraction of significant miRNAs")
+g3 <- ggplot(d1, aes(x = delta_R2adj, y = n_significant_miRNAs))
+g3 <- g3 + geom_point()
+g3 <- g3 + labs(x=parse(text="Delta~bar(R)^2"), y="N significant miRNAs")
+g4 <- ggplot(d1, aes(x = R2_full, y = n_significant_miRNAs))
+g4 <- g4 + geom_point()
+g4 <- g4 + labs(x=parse(text="R[full]^2"), y="N significant miRNAs")
+plot.file <- file.path(PLOTDIR, "DeltaR2adj_vs_frac_sign_miRNAs.pdf")
+#ggsave(plot.file, g, height=7, width=9, dpi=600)
+ggsave(plot.file, arrangeGrob(g1, g2, g3, g4, ncol=2), height=7, width=9, dpi=400)
+
+
+
+
+## Plot magnitude of miRNA versus IQR and SD ####
+
 # First select only miRNA coefs
-d2 <- subset(d.coefs, grepl("miR", variable), select=c(gene, variable, median, IQR, sd, significant))
+d2 <- subset(d.coefs, grepl("hsa", variable), select=c(gene, variable, median, IQR, sd, significant))
 d2m <- melt(d2, id.vars=c("gene","variable","median","significant"), variable.name="measure", value.name="value")
 g <- ggplot(d2m, aes( x = median, y = value, color = significant))
 g <- g + geom_point()
@@ -65,8 +89,9 @@ ggsave(plot.file, g, height=7, width=5, dpi=600)
 
 
 
-## Plot miRNA median vs w0 median and miRNA median vs gene median
-d3 <- d.coefs %>% select(gene, variable, median, significant) %>% group_by(gene) %>% mutate(median_gene=median[variable=="gene"], median_w0=median[variable=="w0"], ratio_gene=abs(median/median_gene), ratio_w0=abs(median/median_w0)) %>% ungroup %>% filter(grepl("miR", variable))
+## Plot miRNA median vs gene median ####
+
+d3 <- d.coefs %>% select(gene, variable, median, significant) %>% group_by(gene) %>% mutate(median_gene=median[variable=="gene"], median_w0=median[variable=="w0"], ratio_gene=abs(median/median_gene), ratio_w0=abs(median/median_w0)) %>% ungroup %>% filter(grepl("hsa", variable))
 d3m <- melt(d3, id.vars=c("gene","variable","median","significant"), variable.name="measure", value.name="value")
 g1 <- ggplot(d3, aes( x = significant, y = ratio_gene, fill = significant))
 g1 <- g1 + geom_boxplot() + coord_cartesian(ylim = quantile(d3$ratio_gene, c(0.1, 0.9))*1.5)
@@ -75,8 +100,44 @@ g2 <- ggplot(d3, aes( x = significant, y = ratio_w0, fill = significant))
 g2 <- g2 + geom_boxplot() + coord_cartesian(ylim = quantile(d3$ratio_w0, c(0.1, 0.9))*1.3)
 g2 <- g2 + theme(legend.position = "none")
 
-plot.file <- file.path(PLOTDIR, "miRNA_gene_w0_magnitude.pdf")
+# Dont use g2 since miRNA vs w0 isnt actually that interesting
+plot.file <- file.path(PLOTDIR, "miRNA_gene_median.pdf")
 ggsave(plot.file, arrangeGrob(g1, nrow=1), height=5, width=6, dpi=400)
 
 
-table.out <- d2
+
+## Compute a summary table ####
+sry <- numeric()
+miRs <- d.coefs %>% filter(grepl("hsa", variable))
+mRNAs <- d.coefs %>% filter(variable == "gene")
+mods <- d %>% filter(full_model_found == "yes" & n_miRNAs > 0)
+
+sry["N model found"] <- sum(d$full_model_found == "yes")
+sry["No miRNAs in found model"] <- sum(d$full_model_found == "yes" & d$n_miRNAs == 0)
+sry["N model not found"] <- sum(d$full_model_found == "no")
+sry["Gene model better"] <- sum(mods$R2adj_gene > mods$R2adj_full)
+sry["N genes"] <- length(unique(d.coefs$gene))
+sry["N miRNAs total"] <- nrow(miRs)
+sry["Average N miRNAs"] <- mean(mods$n_miRNAs)
+sry["Median N miRNAs"] <- median(mods$n_miRNAs)
+sry["Positive miRNAs"] <- sum(miRs$median > 0)
+sry["Negative miRNAs"] <- sum(miRs$median < 0)
+sry["Fraction negative miRNAs"] <- sum(miRs$median < 0)/nrow(miRs)
+sry["N significant miRNAs total"] <- sum(miRs$significant == "yes")
+sry["Average N significant miRNAs"] <- mean(mods$n_significant_miRNAs)
+sry["Median N significant miRNAs"] <- median(mods$n_significant_miRNAs)
+sry["Average fraction of significant miRNAs"] <- mean(mods$n_significant_miRNAs/mods$n_miRNAs)
+sry["SD of fraction of significant miRNAs"] <- sd(mods$n_significant_miRNAs/mods$n_miRNAs)
+sry["Positive significant miRNAs"] <- sum(miRs$median > 0 & miRs$significant == "yes")
+sry["Negative significant miRNAs"] <- sum(miRs$median < 0 & miRs$significant == "yes")
+sry["Fraction negative significant miRNAs"] <- sum(miRs$median < 0 & miRs$significant == "yes")/sum(miRs$significant == "yes")
+sry["N mRNA coefs"] <- nrow(mRNAs)
+sry["Positive mRNA coefs"] <- sum(mRNAs$median > 0)
+sry["Negative mRNA coefs"] <- sum(mRNAs$median < 0)
+sry["Fraction positive mRNA coefs"] <- sry["Positive mRNA coefs"]/nrow(mRNAs)
+sry["N significant mRNA coefs"] <- sum(mRNAs$significant == "yes")
+sry["Positive significant mRNA coefs"] <- sum(mRNAs$median > 0 & mRNAs$significant == "yes")
+sry["Negative significant mRNA coefs"] <- sum(mRNAs$median < 0 & mRNAs$significant == "yes")
+sry["Fraction positive significant mRNA coefs"] <- sry["Positive significant mRNA coefs"]/sum(mRNAs$significant == "yes")
+
+table.out <- data.frame(summary = names(sry), value = sry)
