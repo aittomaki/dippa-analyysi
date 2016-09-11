@@ -309,6 +309,19 @@ regressionResultsNu1 = REvaluate(
 
 
 
+// LASSO REGRESSION ANALYSIS FOR COMPARISON
+//==========================================================
+
+lassoScript = INPUT(path=CODEDIR+"R/lasso_models.R")
+lassoModels = REvaluate(
+    script = lassoScript,
+    param1 = "10",          // N folds in CV
+    param2 = "lambda.1se",  // selection criterion for CV
+    table1 = proteinNorm,
+    table2 = geneNorm,
+    table3 = mirnaNorm)
+
+
 
 
 
