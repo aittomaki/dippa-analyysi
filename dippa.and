@@ -320,7 +320,13 @@ lassoModels = REvaluate(
     table1 = proteinNorm,
     table2 = geneNorm,
     table3 = mirnaNorm)
-
+lassoModelsMin = REvaluate(
+    script = lassoScript,
+    param1 = "10",          // N folds in CV
+    param2 = "lambda.min",  // selection criterion for CV
+    table1 = proteinNorm,
+    table2 = geneNorm,
+    table3 = mirnaNorm)
 
 
 
