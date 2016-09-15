@@ -1,5 +1,6 @@
 # R script for computing Lasso versions of models
 
+## INIT ####
 library(glmnet)
 
 # Helper function for conversion from df to matrix
@@ -43,6 +44,12 @@ d <- data.frame(gene=genes, R2_gene=0, R2adj_gene=0,
                 gene_only_significant="", gene_lasso_included="",
                 n_miRNAs=0, chosen_miRNAs="", stringsAsFactors=F)
 
+# Data frame for coefs for all models (compile as a list)
+d.coefs <- list()
+
+
+## BUILD MODELS ####
+
 # For each gene, build lasso model
 for(i in 1:length(genes)) {
     g <- genes[i]
@@ -56,12 +63,15 @@ for(i in 1:length(genes)) {
 
     # Get chosen vars and their coefs
     cfs <- as.matrix(coef(cvfit, s=lambda))
-    chosen.vars <- rownames(cfs)[cfs[,1] != 0]
+    cfs <- cfs[cfs[,1]!=0, , drop=F]
+    # Convert . in miRNA names to - and *
+    rownames(cfs) <- gsub("\\.", "-", sub("\\.$", "\\*", rownames(cfs)))
+    chosen.vars <- rownames(cfs)
     # Drop intercept
     if("(Intercept)" %in% chosen.vars)
         chosen.vars <- chosen.vars[-1*match("(Intercept)", chosen.vars)]
     n_vars <- length(chosen.vars)
-    chosen.mirnas <- grep("miR", chosen.vars)
+    chosen.mirnas <- grep("miR", chosen.vars, value=T)
     n_mirnas <- length(chosen.mirnas)
     gene.chosen <- ifelse(n_vars > n_mirnas, "yes", "no")
 
@@ -71,19 +81,22 @@ for(i in 1:length(genes)) {
     # Compute R2 myself and compare
     ypred <- predict(cvfit, newx=x, s=lambda)
     r2.comp <- 1 - sum((y-ypred)^2)/sum((y-mean(y))^2)
-    if(r2-r2.comp > .Machine$double.neg.eps)
-        warning(sprintf("GLMnet and computed R2 differ! (%f vs %f)",r2,r2.comp))
+    if(r2-r2.comp > 0.000001)
+        print(sprintf("GLMnet and computed R2 differ! (%f vs %f)",r2,r2.comp))
 
 
     # Convert . in miRNA names to - and *
     chosen.mirnas <- gsub("\\.", "-", sub("\\.$", "\\*", chosen.mirnas))
 
     # Gather results
-    d[i, "chosen_mirnas"] <- paste(chosen.mirnas, collapse=",")
-    d[i, "n_mirnas"] <- n_mirnas
+    d[i, "chosen_miRNAs"] <- paste(chosen.mirnas, collapse=",")
+    d[i, "n_miRNAs"] <- n_mirnas
     d[i, "R2_lasso"] <- r2
     d[i, "R2adj_lasso"] <- r2.adj
     d[i, "gene_lasso_included"] <- gene.chosen
+
+    cfs <- data.frame(gene=g, variable=rownames(cfs), coef=cfs[,1])
+    d.coefs <- c(d.coefs, list(cfs))
 
     # Fit gene only model with simple lm
     dlm <- data.frame(P=y, G=gene[,g])
@@ -93,4 +106,10 @@ for(i in 1:length(genes)) {
     d[i,"gene_only_significant"] <- ifelse(coef(summary(fit))["G","Pr(>|t|)"] < 0.05, "yes", "no")
 }
 
+
+## OUTPUT ####
+
 table.out <- d
+d.coefs <- do.call(rbind, d.coefs)
+write.table(d.coefs, file=get.output(cf,'optOut1'), sep="\t", row.names=F)
+rm(optOut1)
