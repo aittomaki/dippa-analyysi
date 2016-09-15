@@ -6,11 +6,20 @@ library(plyr)
 library(dplyr)
 library(gridExtra)
 library(cowplot)
+library(latex2exp)
 #theme_set(theme_bw())
 
 d       <- table1
 d.coefs <- table2
 PLOTDIR <- document.dir
+
+miRs <- d.coefs %>% filter(grepl("hsa", variable))
+mRNAs <- d.coefs %>% filter(variable == "gene")
+mods <- d %>% filter(full_model_found == "yes" & n_miRNAs > 0)
+
+pos_miRs <- miRs %>% group_by(gene) %>% summarise(n_pos=sum(median>0), frac_pos=sum(median>0)/n())
+pos_miRs <- left_join(pos_miRs, select(d, gene, n_miRNAs, n_significant_miRNAs), by="gene")
+
 
 
 
@@ -57,7 +66,23 @@ save_plot(plot.file, g123, ncol=1)
 
 
 
-## Plot delta R2adj vs fraction dignificant miRNAs ####
+## Plot n chosen/signif miRNAs vs positive miRNA coefs #####
+g1 <- ggplot(pos_miRs, aes(x = n_miRNAs, y = frac_pos))
+g1 <- g1 + geom_hline(yintercept = 0.50, color="gray") + geom_point()
+g1 <- g1 + labs(x="N miRNAs chosen", y=TeX("Fraction of w_{jk} > 0"))
+plot.file <- file.path(PLOTDIR, "n_miRNAs_vs_frac_pos.pdf")
+save_plot(plot.file, g1)
+
+g1 <- ggplot(pos_miRs, aes(x = n_significant_miRNAs, y = frac_pos))
+g1 <- g1 + geom_point()
+g1 <- g1 + labs(x=NULL)
+g2 <- ggplot(pos_miRs, aes(x = n_significant_miRNAs, y = n_pos))
+g2 <- g2 + geom_point()
+g12 <- plot_grid(g1, g2, align = "v", ncol = 1)
+
+
+
+## Plot delta R2adj vs fraction significant miRNAs ####
 
 d1$fraction_sign_miRNAs <- d1$n_significant_miRNAs / d1$n_miRNAs
 g1 <- ggplot(d1, aes(x = delta_R2adj, y = fraction_sign_miRNAs))
@@ -122,12 +147,8 @@ ggsave(plot.file, arrangeGrob(g1, nrow=1), height=5, width=6, dpi=400)
 
 
 
-## Compute a summary table ####
+## Compute summary measures ####
 sry <- numeric()
-miRs <- d.coefs %>% filter(grepl("hsa", variable))
-mRNAs <- d.coefs %>% filter(variable == "gene")
-mods <- d %>% filter(full_model_found == "yes" & n_miRNAs > 0)
-
 sry["N model found"] <- sum(d$full_model_found == "yes")
 sry["No miRNAs in found model"] <- sum(d$full_model_found == "yes" & d$n_miRNAs == 0)
 sry["N model not found"] <- sum(d$full_model_found == "no")
