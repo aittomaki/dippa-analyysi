@@ -250,18 +250,20 @@ finalModels_a0_9_g0_2 = REvaluate(
     table2 = proteinNorm,
     table3 = geneNorm,
     table4 = mirnaNorm)
+finalModels = finalModels_a0_5_g0_2
+finalCoefs = finalModels.optOut2
 // finalModelPlots = LatexCombiner(
 //    finalModels_a0_5_g0_2.document, finalModels_a0_75_g0_2.document, finalModels_a0_9_g0_2.document)
 // finalModelGallery = ImageGallery(force folderRoot = finalModelPlots)
 finalPlotsScript = INPUT(path=CODEDIR+"R/final_model_plots.R")
 finalPlots = REvaluate(
     script = finalPlotsScript,
-    table1 = finalModels_a0_9_g0_2.table,
-    table2 = finalModels_a0_9_g0_2.optOut2)
+    table1 = finalModels.table,
+    table2 = finalModels.optOut2)
 
 
 finalModelClean = CSVCleaner(
-    force original = finalModels_a0_5_g0_2.optOut1,
+    force original = finalModels.optOut1,
     rename         = "gene=Gene,n_miRNAs=N miRNAs,significant_miRNAs=Significant miRNAs",
     columns        = "gene,R2_gene,R2_full,n_miRNAs,significant_miRNAs")
     //numberFormat = "R2_gene=#0.000\nR2_gene_adj=#0.000\nR2_full=#0.000\nR2_full_adj=#0.000\n",
@@ -327,6 +329,14 @@ lassoModelsMin = REvaluate(
     table1 = proteinNorm,
     table2 = geneNorm,
     table3 = mirnaNorm)
+lassoCoefs = lassoModels.optOut1
+
+// Compare results
+compareScript = INPUT(path=CODEDIR+"R/compare_PPVS_lasso.R")
+compareModels = REvaluate(
+    script = compareScript,
+    table1 = finalCoefs,
+    table2 = lassoCoefs)
 
 
 

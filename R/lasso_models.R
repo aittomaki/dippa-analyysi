@@ -71,7 +71,7 @@ for(i in 1:length(genes)) {
     if("(Intercept)" %in% chosen.vars)
         chosen.vars <- chosen.vars[-1*match("(Intercept)", chosen.vars)]
     n_vars <- length(chosen.vars)
-    chosen.mirnas <- grep("miR", chosen.vars, value=T)
+    chosen.mirnas <- grep("hsa", chosen.vars, value=T)
     n_mirnas <- length(chosen.mirnas)
     gene.chosen <- ifelse(n_vars > n_mirnas, "yes", "no")
 
