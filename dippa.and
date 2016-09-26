@@ -32,7 +32,7 @@ hospital = CSVFilter(
     auxiliary      = samples,
     includeColumns = "OSLO2 id,Hospital",
     rename         = "OSLO2 id=SampleID")
-hospitalPeriod = SearchReplace(
+hospitalRename = SearchReplace(
     file    = hospital,
     key00   = "(OSL2.)-(.{6})",
     value00 = "$1.$2")
@@ -66,14 +66,16 @@ protein = CSVFilter(
     csv            = proteinRename,
     includeColumns = "Antibody",
     negate         = true)
+proteinSort = CSVSort(
+    csv = protein)
 // Transpose to have variables as columns
 proteinT = MatrixTranspose(
-    matrix  = protein,
+    matrix  = proteinSort,
     rowName = "SampleID")
 // Normalize for regression
 proteinNorm = LinearNormalizer(
-    matrix = proteinT,
-    method = "z")
+    force matrix = proteinT,
+    method       = "z")
 
 
 
@@ -99,13 +101,15 @@ geneAgilent = IDConvert(
 gene = CSVFilter(
     csv       = geneAgilent,
     auxiliary = protein)
+geneSort = CSVSort(
+    csv = gene)
 // Transpose and normalize
 geneT = MatrixTranspose(
-    matrix  = gene,
+    matrix  = geneSort,
     rowName = "SampleID")
 geneNorm = LinearNormalizer(
-    matrix = geneT,
-    method = "z")
+    force matrix = geneT,
+    method       = "z")
 
 
 
@@ -117,42 +121,45 @@ mirnaFilter = CSVFilter(
     auxiliary      = falseMirnas,
     includeColumns = "",
     negate         = true)
+// Sort miRNAs alphabetically
+mirnaSort = CSVSort(
+    csv = mirnaFilter)
 // Transpose and normalize miRNA data
 mirnaT = MatrixTranspose(
-    matrix  = mirnaFilter,
+    matrix  = mirnaSort,
     rowName = "SampleID")
 mirnaNorm = LinearNormalizer(
-    matrix = mirnaT,
-    method = "z")
+    force matrix = mirnaT,
+    method       = "z")
 
 
 
 // QC plots of original data (which is normalized but not z-transformed)
 proteinQCPlots = REvaluate(
     script = QCscript,
-    table1 = protein,
-    table2 = hospitalPeriod,
+    table1 = proteinSort,
+    table2 = hospitalRename,
     param1 = "protein")
 geneQCPlots = REvaluate(
     script = QCscript,
-    table1 = gene,
-    table2 = hospitalPeriod,
+    table1 = geneSort,
+    table2 = hospitalRename,
     param1 = "mRNA")
 mirnaQCPlots = REvaluate(
     script = QCscript,
-    table1 = mirna,
-    table2 = hospitalPeriod,
+    table1 = mirnaSort,
+    table2 = hospitalRename,
     param1 = "miRNA")
 // These don't work for some reason
 // proteinQC = ArrayQC(
 //     normalized       = protein,
-//     sampleAnnotation = hospitalPeriod)
+//     sampleAnnotation = hospitalRename)
 // geneQC = ArrayQC(
 //     normalized       = gene,
-//     sampleAnnotation = hospitalPeriod)
+//     sampleAnnotation = hospitalRename)
 // mirnaQC = ArrayQC(
 //     normalized       = mirnaFilter, 
-//     sampleAnnotation = hospitalPeriod)
+//     sampleAnnotation = hospitalRename)
 
 
 // Density plots of normalized data
@@ -162,12 +169,12 @@ proteinDist = Plot2D(x=proteinNorm, y=proteinNorm, plotType="l",
     yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
     width="10",height="10",dpCm="48")
 geneDist = Plot2D(x=geneNorm, y=geneNorm, plotType="l",
-    imageType="single", title="gene z-normalized",
+    imageType="single", title="Gene z-normalized",
     xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
     yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
     width="10",height="10",dpCm="48")
 mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
-    imageType="single", title="mirna z-normalized",
+    imageType="single", title="miRNA z-normalized",
     xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
     yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
     width="10",height="10",dpCm="48")
@@ -176,17 +183,17 @@ mirnaDist = Plot2D(x=mirnaNorm, y=mirnaNorm, plotType="l",
 scalingScript = INPUT(path=CODEDIR+"R/scale_regression_data.R")
 proteinScaled = REvaluate(
     script = scalingScript,
-    table1 = protein,
+    table1 = proteinSort,
     param1 = SIGMA,
     param2 = "protein")
 geneScaled = REvaluate(
     script = scalingScript,
-    table1 = gene,
+    table1 = geneSort,
     param1 = SIGMA,
     param2 = "gene")
 mirnaScaled = REvaluate(
     script = scalingScript,
-    table1 = mirna,
+    table1 = mirnaSort,
     param1 = SIGMA,
     param2 = "miRNA")
 
