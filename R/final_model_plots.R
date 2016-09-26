@@ -40,7 +40,7 @@ dm$variable <- revalue(dm$variable, c(
     delta_R2adj = "Delta~bar(R)^2"
 ))
 g <- ggplot(dm, aes(x = n_miRNAs, y = value))#, color=adjusted, size=adjusted))
-g <- g + geom_point(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
+g <- g + geom_jitter(alpha=0.6) + geom_line(stat="smooth", method="loess", alpha=0.3)
 g <- g + geom_ribbon(stat="smooth", method="loess", alpha=0.05)##, aes(color=NULL, group=adjusted))
 g <- g + facet_grid(variable ~ ., scales = "free", switch="y", labeller=label_parsed)
 #g <- g + scale_size_manual(values=c(1,1,0.5), guide=F)
