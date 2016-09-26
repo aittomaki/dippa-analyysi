@@ -1,0 +1,274 @@
+//--------------------
+// Functions for preprocessing microarray data.
+// NOTE: These were written for original Vessela project,
+// not for the thesis.
+//--------------------
+
+
+/**
+ * Agilent1ChPreprocess - Preprocessing for a Agilent 1 channel microarray dataset
+ *
+ */
+function Agilent1ChPreprocess
+        (AgilentDirectory agilent,
+         CSV              sampleNames,
+         optional CSV     sampleBatch,
+         boolean reAnnotateProbes = true,
+         boolean qualityControl   = true,
+         boolean spatialPlots     = true,
+         float probeNALimit       = 0,
+         string signalColumns     = "gMedianSignal,gBGMedianSignal",
+         string filter            = "ControlType!=0 || gIsSaturated==1 || gIsWellAboveBG==0 || gIsFeatPopnOL==1",
+         string probeColumn       = "ProbeName",
+         string probeAnnotColumns = "GeneName,Row,Col,accessions",
+         string geneColumn        = "efg_agilent_sureprint_g3_ge_8x60k", //"efg_agilent_wholegenome_4x44k_v2",
+         string batchColumn       = "Hospital",
+         string bgMethod          = "normexp",
+         string normalizeMethod   = "quantile",
+         string qcSectionTitle    = "Agilent Quality Control")
+     -> (LogMatrix expr,
+         CSV       probeAnnotation,
+         Latex     qcReport,
+         Latex     spatialPlotReport)
+{
+    // Read in data
+    data = AgilentReader(agilent         = agilent,
+                         sampleNames     = sampleNames,
+                         channelColumns  = signalColumns,
+                         combineProbes   = false,
+                         filter          = filter,
+                         idColumn        = probeColumn,
+                         probeAnnotation = probeAnnotColumns)
+    // Normalize
+    normalized = LimmaNormalizer(green            = data.green,
+                                 greenBG          = data.green2,
+                                 backgroundMethod = bgMethod,
+                                 normexpMethod    = "saddle",
+                                 arrayMethod      = normalizeMethod)
+    // Median center if no between array normalization (this could be a parameter)
+    if(normalizeMethod == "none") {
+        centered = LinearNormalizer(normalized, method="median")
+    } else {
+        centered = normalized
+    }
+    // Combine replicate probes
+    combined = IDConvert(csv              = centered,
+                         conversionTable  = data.probeAnnotation,
+                         conversionColumn = probeColumn,
+                         targetColumn     = probeColumn,
+                         unique           = true)
+    arrayAnnotation = IDConvert(csv              = data.probeAnnotation,
+                                conversionTable  = data.probeAnnotation,
+                                conversionColumn = probeColumn,
+                                targetColumn     = probeColumn,
+                                unique           = true)
+    // Drop probes with too many NAs
+    filtered = CSVFilter(combined, nonMissing=probeNALimit)
+    // Annotate and combine probes to genes
+    if(reAnnotateProbes) {
+        probeAnnotationBM = BiomartAnnotator(filter       = combined, // all probes!
+                                             attributes  = "ensembl_gene_id",
+                                             filterTypes = geneColumn,
+                                             batchSize   = 5000)
+        // Filter probes matching multiple genes
+        probeAnnotation = CSVFilter(csv            = probeAnnotationBM.annotations,
+                                    regexp         = "ensembl_gene_id=.*\\,.*",
+                                    negate         = true,
+                                    includeColumns = "")
+        // Convert and combine probes to genes
+        expr = IDConvert(csv                 = filtered,
+                         conversionTable     = probeAnnotation,
+                         conversionColumn    = "ensembl_gene_id",
+                         targetColumn        = ".GeneId",
+                         unique              = true,
+                         originalWhenMissing = false,
+                         dropMissing         = true)
+    } else {
+        expr = IDConvert(csv                 = filtered,
+                         conversionTable     = arrayAnnotation,
+                         conversionColumn    = geneColumn,
+                         targetColumn        = geneColumn,
+                         unique              = true,
+                         originalWhenMissing = false,
+                         dropMissing         = true)
+        probeAnnotation = arrayAnnotation
+    }
+
+    // Quality control reporting
+    if(qualityControl) {
+        boxPlot = BoxPlot(matr1=data.green, matr2=expr,
+                title1="raw", title2="normalized", width=20, plotPar="cex.lab=0.3")
+        rawDistribution = Plot2D(x=data.green, y=data.green, labels=sampleBatch, plotType="l",
+                imageType="single", title="raw",
+                xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+                yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+                sectionTitle="Distribution",
+                caption="Distribution of raw probe intensities. Each line represents one array.")
+        distribution = Plot2D(x=expr, y=expr, labels=sampleBatch, plotType="l",
+                imageType="single", title="normalized",
+                xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+                yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+                sectionTitle="",
+                caption="Distribution of normalized probe intensities. Each line represents one array.")
+        if(sampleAnnotation != null) {
+            groups = SampleAnnotation2SampleGroup(sampleBatch, groupColumn=batchColumn)
+        } else {
+            groups = null
+        }
+        rawCluster = ClusterReport(matr=data.green, showDistance=false, cexSampleText=0.2, clusterMethod="complete")
+        cluster = ClusterReport(matr=expr, showDistance=false, cexSampleText=0.2, clusterMethod="complete")
+        correlation  = CorrelationReport(matr=expr, showTable=false)
+        mdsR = INPUT(path="r/mds_filename_groups.r")
+        dateMDS = REvaluate(script = mdsR,
+                            table1 = expr,
+                            table2 = sampleNames)
+        arrayMDS = REvaluate(script = mdsR,
+                             table1 = expr,
+                             table2 = sampleNames,
+                             param1 = "^\\d{6}(?:_|_\\d_)(\\d{12}).*")
+        mdsGallery = ImageGallery(folder1 = dateMDS.document,
+                                  title1  = "Hybr date MDS",
+                                  folder2 = arrayMDS.document,
+                                  title2  = "Array MDS")
+        if(spatialPlots) {
+            spatial = SpatialPlot(geneAnnotation=raw.probeAnnotation,
+                    channel1=raw.green,
+                    channelTitle1="Raw signal")
+            spatialPlotReport = spatial.report
+        } else {
+            spatialPlotReport = LatexCombiner()
+        }
+        qcReport = LatexCombiner(boxPlot.report,
+                rawDistribution.plot, distribution.plot,
+                rawCluster.report, cluster.report,
+                correlation.report, sectionTitle=qcSectionTitle)
+    }
+    return record(expr              = expr,
+                  probeAnnotation   = probeAnnotation,
+                  qcReport          = qcReport,
+                  spatialPlotReport = spatialPlotReport)
+}
+
+
+
+
+
+/**
+ * ArrayQC - QC plots for a microarray dataset
+ *
+ */
+function ArrayQC(         LogMatrix normalized,
+                 optional LogMatrix raw,
+                 optional CSV       sampleAnnotation,
+                 string batchColumn   = "Hospital",
+                 string colorFunction = "c('#1B9E77','#D95F02','#7570B3')",
+                 string sectionTitle  = "Quality control",
+                 string sectionType   = "section",
+                 boolean doSpatialPlots = false)
+             -> (Latex report,
+                 Latex spatialPlotReport)
+{
+    if(sampleAnnotation != null) {
+        groups = SampleAnnotation2SampleGroup(sampleAnnotation, groupColumn=batchColumn)
+    } else {
+        groups = null
+        colorFunction = ""
+    }
+    boxPlot = BoxPlot(matr1=normalized, matr2=raw,
+            title1="normalized", title2="raw", width=20, plotPar="cex.lab=0.3")
+    distribution = Plot2D(x=normalized, y=normalized,
+            labels=sampleAnnotation, labelColumn="Hospital",
+            plotType="l", imageType="single", title="normalized",
+            xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+            yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+            colorFunction = colorFunction,
+            sectionTitle="Normalized distribution",
+            caption="Distribution of normalized probe intensities. Each line represents one array.")
+    cluster = ClusterReport(matr=normalized, showDistance=false, cexSampleText=0.2, clusterMethod="complete")
+    mds = MDSPlot(expr=normalized, groups=groups, colorFunction=colorFunction, plotNames=false)
+    correlation = CorrelationReport(matr=normalized, showTable=false)
+    if(raw != null) {
+        rawDistribution = Plot2D(x=raw, y=raw,
+                labels=sampleAnnotation, labelColumn="Hospital",
+                plotType="l", imageType="single", title="raw",
+                xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+                yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+                colorFunction = colorFunction,
+                sectionTitle="Raw distribution",
+                caption="Distribution of raw probe intensities. Each line represents one array.")
+        rawDistributionReport = rawDistribution.plot
+        rawCluster = ClusterReport(matr=raw, showDistance=false, cexSampleText=0.2, clusterMethod="complete")
+        rawClusterReport = rawCluster.report
+        rawMDS = MDSPlot(expr=raw, groups=groups, colorFunction=colorFunction, plotNames=false)
+        rawMDSReport = rawMDS.report
+    } else {
+        rawClusterReport = LatexCombiner()
+        rawDistributionReport = LatexCombiner()
+        rawMDSReport = LatexCombiner()
+    }
+    report = LatexCombiner(boxPlot.report,
+            rawDistributionReport, distribution.plot,
+            rawClusterReport, cluster.report,
+            rawMDSReport, mds.report,
+            correlation.report,
+            sectionTitle=sectionTitle, sectionType=sectionType)
+    if(doSpatialPlots) {
+        spatial = SpatialPlot(geneAnnotation=raw.probeAnnotation,
+                channel1=raw,
+                channelTitle1="Raw signal", @enabled=false)
+        spatialPlotReport = spatial.report
+    } else {
+        spatialPlotReport = LatexCombiner()
+    }
+    return record(report            = report,
+                  spatialPlotReport = spatialPlotReport)
+}
+
+
+
+
+
+/**
+ * RPPAPreprocess - Median normalization and QC plots for RPPA data
+ *
+ */
+function RPPAPreprocess
+        (LogMatrix data)
+     -> (LogMatrix expr,
+         Latex     qcReport)
+{
+    // Normalize per array
+    normalized = LinearNormalizer(data, method="median")
+    // Transpose to get samples as columns
+    expr = MatrixTranspose(matrix  = normalized,
+                           rowName = "protein")
+    // Plot each protein array as box plot
+    boxPlot = BoxPlot(matr1    = data,
+                      matr2    = normalized,
+                      plotType = "violin",
+                      pngImage = true,
+                      plotPar  = "cex=0.7",
+                      width    = 25,
+                      title1   = "RPPA arrays",
+                      ylabel1  = "log2 expr",
+                      title2   = "RPPA arrays median centered",
+                      ylabel2  = "log2 expr")
+    arrayDistribution = Plot2D(x=normalized, y=normalized, plotType="l",
+                imageType="single", title="normd protein arrays",
+                xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+                yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+                sectionTitle="",
+                caption="Distribution of normalized protein intensities. "+
+                        "Each line represents one array (i.e. one protein).")
+    sampleDistribution = Plot2D(x=expr, y=expr, plotType="l",
+                imageType="single", title="normd protein samples",
+                xTransformation="sapply(x, function(x) density(x,n=length(x), na.rm=T)$x)",
+                yTransformation="sapply(y, function(y) density(y,n=length(y), na.rm=T)$y)",
+                sectionTitle="",
+                caption="Distribution of normalized protein intensities. "+
+                        "Each line represents one sample. "+
+                        "Note that arrays are proteins, not samples, so these do not present arrays.")
+    qcReport = LatexCombiner(boxPlot.report, arrayDistribution.plot, sampleDistribution.plot)
+    return record(force expr = expr,
+                  qcReport     = qcReport)
+}
