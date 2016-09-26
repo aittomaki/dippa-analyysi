@@ -3,8 +3,11 @@
 //$ --log $HOME/wrk/dippa-execute/log
 //$ --java-heap 4000
 //$ --threads 4
+//$ -b /home/viljami/hg/anduril-bundles-old/beta
 
 
+
+include "preprocessing.and"
 
 
 
@@ -24,8 +27,17 @@ mrna = INPUT(path=DATADIR+"mrna.csv")
 mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
 clinicalMessy = INPUT(path=DATADIR+"OSLO2-clinical.csv")
 samples = INPUT(path=DATADIR+"samples.csv")
+hospital = CSVFilter(
+    csv            = INPUT(path=DATADIR+"key_array_patient.csv"),
+    auxiliary      = samples,
+    includeColumns = "OSLO2 id,Hospital",
+    rename         = "OSLO2 id=SampleID")
+hospitalPeriod = SearchReplace(
+    file    = hospital,
+    key00   = "(OSL2.)-(.{6})",
+    value00 = "$1.$2")
 
-
+QCscript = INPUT(path=CODEDIR+"R/QC_plots.R")
 
 
 
@@ -64,6 +76,9 @@ proteinNorm = LinearNormalizer(
     method = "z")
 
 
+
+
+
 // -- mRNA DATA --
 // Convert mRNA probe accession IDs to gene names
 geneAnnotBiomart = BiomartAnnotator(
@@ -93,6 +108,8 @@ geneNorm = LinearNormalizer(
     method = "z")
 
 
+
+
 // -- miRNA DATA --
 // Drop miRNAs not in miRBase
 mirnaFilter = CSVFilter(
@@ -107,6 +124,35 @@ mirnaT = MatrixTranspose(
 mirnaNorm = LinearNormalizer(
     matrix = mirnaT,
     method = "z")
+
+
+
+// QC plots of original data (which is normalized but not z-transformed)
+proteinQCPlots = REvaluate(
+    script = QCscript,
+    table1 = protein,
+    table2 = hospitalPeriod,
+    param1 = "protein")
+geneQCPlots = REvaluate(
+    script = QCscript,
+    table1 = gene,
+    table2 = hospitalPeriod,
+    param1 = "mRNA")
+mirnaQCPlots = REvaluate(
+    script = QCscript,
+    table1 = mirna,
+    table2 = hospitalPeriod,
+    param1 = "miRNA")
+// These don't work for some reason
+// proteinQC = ArrayQC(
+//     normalized       = protein,
+//     sampleAnnotation = hospitalPeriod)
+// geneQC = ArrayQC(
+//     normalized       = gene,
+//     sampleAnnotation = hospitalPeriod)
+// mirnaQC = ArrayQC(
+//     normalized       = mirnaFilter, 
+//     sampleAnnotation = hospitalPeriod)
 
 
 // Density plots of normalized data
