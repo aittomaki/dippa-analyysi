@@ -69,7 +69,7 @@ g <- g + theme(panel.grid.major = element_blank(),
                panel.grid.minor = element_blank())
 g <- g + theme(legend.direction = "horizontal",
                legend.position = legpos)
-g <- g + labs(y=sprintf("Log2 %s expression",data.name))#,x="Tumor sample", title=sprintf("Boxplot of %s arrays",data.name))
+g <- g + labs(y="Log2 expression", x=NULL)#,x="Tumor sample", title=sprintf("Boxplot of %s arrays",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-sample_boxplot.png",instance.name))
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
@@ -82,7 +82,7 @@ g <- g + theme(axis.text.x = element_blank(),
                axis.ticks.x = element_blank())
 g <- g + theme(panel.grid.major = element_blank(),
                panel.grid.minor = element_blank())
-g <- g + labs(y="Log2 expression")#, x=sprintf("%s variable",data.name))
+g <- g + labs(y="Log2 expression", x=NULL)#, x=sprintf("%s variable",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-variable_boxplot.png",instance.name))
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
@@ -96,7 +96,7 @@ g <- g + theme(axis.text.x = element_blank(),
                axis.ticks.x = element_blank())
 g <- g + theme(panel.grid.major = element_blank(),
                panel.grid.minor = element_blank())
-g <- g + labs(y="Log2 expression")#, x=sprintf("%s variable (sorted by median expression)",data.name))
+g <- g + labs(y="Log2 expression", x=NULL)#, x=sprintf("%s variable (sorted by median expression)",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-variable_boxplot_sorted.png",instance.name))
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
@@ -110,7 +110,7 @@ g <- g + theme(axis.text.x = element_blank(),
                axis.ticks.x = element_blank())
 g <- g + theme(panel.grid.major = element_blank(),
                panel.grid.minor = element_blank())
-g <- g + labs(y="Scaled log2 expression")#, x=sprintf("%s variable",data.name))
+g <- g + labs(y="Scaled log2 expression", x=NULL)#, x=sprintf("%s variable",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-variable_boxplot_scaled.png",instance.name))
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
@@ -124,7 +124,7 @@ g <- g + theme(axis.text.x = element_blank(),
                axis.ticks.x = element_blank())
 g <- g + theme(panel.grid.major = element_blank(),
                panel.grid.minor = element_blank())
-g <- g + labs(y="Scaled log2 expression")#, x=sprintf("%s variable (sorted by unscaled median expression)",data.name))
+g <- g + labs(y="Scaled log2 expression", x=NULL)#, x=sprintf("%s variable (sorted by unscaled median expression)",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-variable_boxplot_scaled_sorted.png",instance.name))
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
