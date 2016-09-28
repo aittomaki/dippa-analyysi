@@ -20,11 +20,15 @@ SIGMA = 0.1 //constant for [0,1]-scaling, not used!
 // Input data
 CODEDIR = $HOME+"/wrk/dippa-analyysi/"
 DATADIR = $HOME+"/wrk/dippa-data/"
+
 proteinMessy = INPUT(path=DATADIR+"Oslo2-RPPA_data.csv")
+
 mirna = INPUT(path=DATADIR+"mirna.csv")
 falseMirnas = INPUT(path=DATADIR+"false_miRNA_ids.txt")
+
 mrna = INPUT(path=DATADIR+"mrna.csv")
 mrnaAnnotAgilent = INPUT(path=DATADIR+"mrna_annot.csv")
+
 clinicalMessy = INPUT(path=DATADIR+"OSLO2-clinical.csv")
 samples = INPUT(path=DATADIR+"samples.csv")
 hospital = CSVFilter(
@@ -37,7 +41,8 @@ hospitalRename = SearchReplace(
     key00   = "(OSL2.)-(.{6})",
     value00 = "$1.$2")
 
-QCscript = INPUT(path=CODEDIR+"R/QC_plots.R")
+tarBase = INPUT(path=DATADIR+"tarbase_hs.csv")
+miRBaseUpdate = INPUT(path=DATADIR+"miRBaseTracker.csv")
 
 
 
@@ -135,6 +140,7 @@ mirnaNorm = LinearNormalizer(
 
 
 // QC plots of original data (which is normalized but not z-transformed)
+QCscript = INPUT(path=CODEDIR+"R/QC_plots.R")
 proteinQCPlots = REvaluate(
     script = QCscript,
     table1 = proteinSort,
@@ -243,7 +249,7 @@ Clinical features of the 283 tumor samples included in the analysis.
 Table compiled from original data kindly provided by Aure et al.
 CIS = carcinoma in situ, ER = estrogen receptor, PR = progesterone receptor,
 HER2 = human epidermal growth factor receptor 2.
-\\label{clinical-data-nominal}
+\\label{clinical-data}
 """
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
 clinicalLatex = REvaluate(
@@ -252,6 +258,42 @@ clinicalLatex = REvaluate(
     param1 = "Tumor size (mm)",
     param2 = "Histology,T stage,M stage,N stage,Grade,ER,PR,HER2,Multifocality",
     param3 = clinicalCaption)
+
+
+
+// -- TARBASE CLEAN --
+// Filter down to genes in data
+tarBaseFilter = CSVFilter(
+    csv       = tarBase,
+    auxiliary = protein,
+    idColumn  = "geneName")
+// Convert miRNA names to the old style
+tarBaseRename = IDConvert(
+    csv              = tarBaseFilter,
+    conversionTable  = miRBaseUpdate,
+    conversionColumn = "query",
+    sourceColumn     = "mirna",
+    keyColumn        = "name")
+
+
+
+
+
+
+// CORRELATION ANALYSIS
+//==========================================================
+
+corScript = INPUT(path=CODEDIR+"R/correlation_distributions.R")
+correlationPlots = REvaluate(
+    script = corScript,
+    table1 = proteinNorm,
+    table2 = geneNorm,
+    table3 = mirnaNorm,
+    table4 = tarBaseRename,
+    param1 = "pearson")
+
+
+
 
 
 
