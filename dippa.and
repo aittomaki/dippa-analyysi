@@ -431,8 +431,13 @@ compareScript = INPUT(path=CODEDIR+"R/compare_PPVS_lasso.R")
 compareModels = REvaluate(
     script = compareScript,
     table1 = finalCoefs,
-    table2 = lassoCoefs)
-
+    table2 = lassoCoefs,
+    table3 = tarBaseRename)
+rComparsionScript = INPUT(path=CODEDIR+"R/r2_comparison.R")
+rComparsion = REvaluate(
+    script = rComparsionScript,
+    table1 = finalModels.table,
+    table2 = lassoModels.table)
 
 
 
