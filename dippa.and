@@ -42,6 +42,7 @@ hospitalRename = SearchReplace(
     value00 = "$1.$2")
 
 tarBase = INPUT(path=DATADIR+"tarbase_hs.csv")
+mirTarBase = INPUT(path=DATADIR+"miRTarBase.csv")
 miRBaseUpdate = INPUT(path=DATADIR+"miRBaseTracker.csv")
 
 
@@ -261,12 +262,16 @@ clinicalLatex = REvaluate(
 
 
 
-// -- TARBASE CLEAN --
+// -- (MIR)TARBASE CLEAN --
 // Filter down to genes in data
 tarBaseFilter = CSVFilter(
     csv       = tarBase,
     auxiliary = protein,
     idColumn  = "geneName")
+mirTarBaseFilter = CSVFilter(
+    csv       = mirTarBase,
+    auxiliary = protein,
+    idColumn  = "TargetGene")
 // Convert miRNA names to the old style
 tarBaseRename = IDConvert(
     csv              = tarBaseFilter,
@@ -274,7 +279,12 @@ tarBaseRename = IDConvert(
     conversionColumn = "query",
     sourceColumn     = "mirna",
     keyColumn        = "name")
-
+mirTarBaseRename = IDConvert(
+    csv              = mirTarBaseFilter,
+    conversionTable  = miRBaseUpdate,
+    conversionColumn = "query",
+    sourceColumn     = "miRNA",
+    keyColumn        = "name")
 
 
 
@@ -290,6 +300,7 @@ correlationPlots = REvaluate(
     table2 = geneNorm,
     table3 = mirnaNorm,
     table4 = tarBaseRename,
+    table5 = mirTarBaseRename,
     param1 = "pearson")
 
 
@@ -363,22 +374,28 @@ finalModelClean = CSVCleaner(
     columns        = "gene,R2_gene,R2_full,n_miRNAs,significant_miRNAs")
     //numberFormat = "R2_gene=#0.000\nR2_gene_adj=#0.000\nR2_full=#0.000\nR2_full_adj=#0.000\n",
     //columns        = "gene,R2_gene,R2_full,R2adj_gene,R2adj_full,n_miRNAs,significant_miRNAs")
+finalModelRemoveHsa = SearchReplace(
+    file    = finalModelClean,
+    key00   = "hsa-",
+    value00 = "")
 
 finalModelHTML = HTMLTable(
     data = finalModelClean.table)
 
 finalModelCaption = """
-Properties of the final fitted models. Missing values for N miRNAs indicate full model was not found,
-zeros indicate no miRNA variables were chosen for full model. R$^2$ was not computed for models with no
-miRNA variables.
-R2\\_gene = coefficient of determination for model with only gene variable (adjusted R$^2$),
-R2\\_full = R$^2$ for full model obtained with PPVS (adjusted R$^2$),
-N miRNAs = number of miRNA variables in full model (number of significant miRNA variables, 95\\% credible interval).
-$^{\\ast}$gene expression variable is significant (95\\% credible interval).
+Properties of fitted models for all 105 genes. A missing value for N miRNAs indicates a projected model was not found
+(i.e. the stopping criterion was not satisfied before reaching 200 covariates),
+a zero indicates no miRNA variables were chosen.
+R$^2$ was not computed for models with no miRNA variables.
+Only the significant miRNAs chosen are listed for compactness of display. \\\\
+R2 gene: R$^2$ for gene-only model (adjusted R$^2$) \\\\
+R2 proj: R$^2$ for projected model obtained with PPVS (adjusted R$^2$) \\\\
+$^{\\ast}$: gene expression variable is significant (95\\% credible interval) \\\\
+N miRNAs: number of miRNA variables in projected model (number of significant miRNA variables, 95\\% credible interval) 
 \\label{table:final-models}
 """
 finalModelTable = CSV2Latex(
-    tabledata = finalModelClean.table,
+    tabledata = finalModelRemoveHsa,
     caption   = finalModelCaption,
     colFormat = "lllrp{7cm}",
     numberFormat = "R2_gene=RAW_LATEX,R2_full=RAW_LATEX",
@@ -386,6 +403,7 @@ finalModelTable = CSV2Latex(
     //columns   = "Gene,R2_gene,R2_full,R2adj_gene,R2adj_full,N miRNAs,Significant miRNAs",
     //rename    = "R2_gene=$R^2_{gene},R2_full=$R^2_{full}$,R2adj_gene=$\\bar{R}^2_{gene}$,R2adj_full=$\\bar{R}^2_{full}$,"+
     //            "N miRNAs=N_{miRNA},Significant miRNAs=Signif miRNAs",
+    rename    = "R2_gene=R2 gene,R2_full=R2 proj",
     evenColor = "1,1,1",
     listCols  = "Significant miRNAs")
 
@@ -432,7 +450,8 @@ compareModels = REvaluate(
     script = compareScript,
     table1 = finalCoefs,
     table2 = lassoCoefs,
-    table3 = tarBaseRename)
+    table3 = tarBaseRename,
+    table4 = mirTarBaseRename)
 rComparsionScript = INPUT(path=CODEDIR+"R/r2_comparison.R")
 rComparsion = REvaluate(
     script = rComparsionScript,
