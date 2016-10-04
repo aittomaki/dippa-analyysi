@@ -23,6 +23,7 @@ if(exists("param1")) { # Anduril
     gene    <- table2
     mirna   <- table3
     tarbase <- table4
+    mirtarbase <- table5
 } else { # non-Anduril
     PLOTDIR    <- "/home/viljami/tmp/plots"
     OUTFILE    <- "/home/viljami/wrk/tmp/plots/foo.csv"
@@ -32,6 +33,7 @@ if(exists("param1")) { # Anduril
     gene   <- read.delim(file.path(WRKDIR,"dippa-data","gene_normalized.csv"))
     mirna  <- read.delim(file.path(WRKDIR,"dippa-data","mirna_normalized.csv"))
     tabase <- read.delim(file.path(WRKDIR,"dippa-data","tarbase_renamed.csv"))
+    mirtarbase <- read.delim(file.path(WRKDIR,"dippa-data","miRTarBase_renamed.csv"))
     if(!dir.exists(PLOTDIR)) dir.create(PLOTDIR)
 }
 
@@ -45,9 +47,12 @@ mirna <- matrix.plz(mirna)[samples,]
 # First clean mirna names (- and * to .)
 tarbase$mirna <- gsub("-", ".", gsub("*", "-", tarbase$mirna, fixed=TRUE), fixed=TRUE)
 mirna.names <- colnames(mirna)
+# Form reference validated set
 tarbase <- filter(tarbase, geneName %in% colnames(gene) & mirna %in% mirna.names & positive_negative == "POSITIVE")
 # Add variable indicating pair
 tarbase <- mutate(tarbase, pair = paste(geneName, mirna, sep="-"))
+mirtarbase <- mutate(mirtarbase, pair = paste(TargetGene, miRNA, sep="-"))
+valids <- union(tarbase$pair, mirtarbase$pair)
 
 # Plot params
 h <- 4
@@ -76,8 +81,11 @@ g <- g + guides(color = guide_legend(override.aes = list(fill = brewer.pal(3,"Se
 plot.file <- file.path(PLOTDIR, "protein-gene-correlation.pdf")
 ggsave(plot.file, g, height=h, width=w, dpi=dpi)
 
-
-
+# print the summary of mathced correlations
+print("r summary")
+print(summary(pg.cor$correlation[pg.cor$group == "matched"]))
+print("r2 summary")
+print(summary( (pg.cor$correlation[pg.cor$group == "matched"])^2 ))
 
 
 
@@ -117,9 +125,9 @@ names(pm.cor) <- c("protein","mirna","correlation")
 pm.cor <- mutate(pm.cor, pair = paste(protein, mirna, sep="-"))
 
 # Make new df with different groups of mRNA-miRNA pairs
-pm.data <- filter(pm.cor, pair %in% tarbase$pair)
+pm.data <- filter(pm.cor, pair %in% valids)
 pm.data$group <- "validated"
-pm.smp <- sample_n(pm.cor, 3000, replace=T)
+pm.smp <- sample_n(pm.cor, 5000, replace=T)
 pm.smp$group <- "random"
 pm.data <- rbind(pm.data, pm.smp)
 

@@ -40,7 +40,7 @@ dm <- melt(d, id.vars=id.name, variable.name="Sample")
 dm <- left_join(dm, groups, by="Sample")
 # Make sure variables come in alphabetical order
 uvals <- sort(unique(dm[,id.name]))
-dm[,id.name] <- factor(dm[,id.name,], levels = uvals)
+#dm[,id.name] <- factor(dm[,id.name,], levels = uvals)
 
 
 
@@ -62,6 +62,7 @@ legpos <- "none"
 # Boxplot of arrays
 g <- ggplot(dm, aes_string(x="Sample", y="value", fill=group.name))
 g <- g + geom_boxplot(outlier.size = osize) #, coef = 100)
+g <- g + scale_fill_brewer(palette="Set1")
 g <- g + theme_classic(base_size = bs)
 g <- g + theme(axis.text.x = element_blank(),
                axis.ticks.x = element_blank())
@@ -137,25 +138,27 @@ ggsave(plot.file, g, height=h, width=w, dpi=dpi)
 ## DENSITY PLOTS ####
 
 # Density plot of arrays
-g <- ggplot(dm, aes_string(x="value", group="Sample", color="Sample"))
-g <- g + geom_line(stat="density", alpha=0.5)
-g <- g + theme_bw()
-g <- g + theme(panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank())
-g <- g + theme(legend.position = 'none')
-g <- g + labs(x=sprintf("Log2 %s expression",data.name))
+g <- ggplot(dm, aes_string(x="value", group="Sample", color="Sample")) +
+    #geom_density() +
+    geom_line(stat="density", alpha=0.5) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) +
+    theme(legend.position = 'none') +
+    labs(x=sprintf("Log2 %s expression",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-sample_density.pdf",instance.name))
 ggsave(plot.file, g, height=5, width=5, dpi=600)
 
 # Density plot of variables
-g <- ggplot(dm, aes_string(x="value", group=id.name, color=id.name))
-g <- g + geom_line(stat="density", alpha=0.5)
-g <- g + theme_bw()
-g <- g + theme(panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank())
-g <- g + theme(legend.position = 'none')
-g <- g + labs(x=sprintf("Log2 %s expression",data.name))
+g <- ggplot(dm, aes_string(x="value", group=id.name, color=id.name)) +
+    #geom_density() +
+    geom_line(stat="density", alpha=0.5) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) +
+    theme(legend.position = 'none') +
+    labs(x=sprintf("Log2 %s expression",data.name))
 
 plot.file <- file.path(PLOTDIR, sprintf("%s-variable_density.pdf",instance.name))
 ggsave(plot.file, g, height=5, width=5, dpi=600)
@@ -176,7 +179,7 @@ if(identical(data.name, "protein")) {
 pca <- prcomp(expr, center=F, scale=F)
 grp <- groups[match(colnames(d)[-1], groups[,1]),2]
 g <- ggbiplot(pca, groups=grp, var.axes=F, scale=0)
-g <- g + scale_color_discrete(name="Hospital")
+g <- g + scale_color_brewer(name="Hospital", palette="Set1")
 g <- g + theme_bw(base_size = 18)
 g <- g + theme(legend.position = legpos)
 g <- g + theme(axis.line.x = element_line(colour = "black"),
@@ -191,7 +194,7 @@ ggsave(plot.file, g, height=h, width=w, dpi=300)
 
 
 ## CLUSTERING ####
-clrs <- c(Radiumhospitalet="#F8766D",Ullevaal="#00BFC4")
+clrs <- c(Radiumhospitalet="#E41A1C", Ullevaal="#377EB8")
 dg <- as.dendrogram(agnes(expr), method=clust.method)
 labels_colors(dg) <- clrs[grp][order.dendrogram(dg)]
 labels(dg) <- "•"
