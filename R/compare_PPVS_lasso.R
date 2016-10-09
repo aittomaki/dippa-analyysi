@@ -26,6 +26,9 @@ ppvs <- dplyr::rename(ppvs, postmed=median)
 # Filter for only miRNA vars and add column for combined gene-miRNA name
 ppvs <- ppvs %>% filter(grepl("hsa", variable)) %>% mutate(pair = paste(gene,variable,sep="-"))
 lasso <- lasso %>% filter(grepl("hsa", variable)) %>% mutate(pair = paste(gene,variable,sep="-"))
+# Add a variable for size of model from which each prediction comes from
+ppvs <- ppvs %>% group_by(gene) %>% mutate(model_size_PPVS=n_distinct(variable)) %>% ungroup()
+lasso <- lasso %>% group_by(gene) %>% mutate(model_size_lasso=n_distinct(variable)) %>% ungroup()
 # Filter PPVS for only significant coefs and lasso for same number of top coefs
 ppvs.sig <- ppvs %>% filter(significant == "yes")
 lasso.top <- lasso[order(abs(lasso$coef), decreasing = T), ][1:nrow(ppvs.sig),]
@@ -76,6 +79,8 @@ dev.off()
 
 # Join the results for matching predictions
 both <- inner_join(ppvs, lasso, by="pair")
+both$dSize <- both$model_size_PPVS - both$model_size_lasso
+both$dCoef <- both$postmed - both$coef
 both.sig <- inner_join(ppvs.sig, lasso.top, by="pair")
 coefcor <- cor(both$postmed, both$coef)
 coefcor.sig <- cor(both.sig$postmed, both.sig$coef)
@@ -83,29 +88,41 @@ coefspr <- cor(both$postmed, both$coef, method="spearman")
 coefspr.sig <- cor(both.sig$postmed, both.sig$coef, method="spearman")
 
 # Plot scatters on coefs, compute correlation
-g1 <- ggplot(both, aes(x = postmed, y = coef))
-g1 <- g1 + geom_abline(intercept = 0, slope = 1, color="gray")
-g1 <- g1 + geom_hline(yintercept = 0, color="gray", size=0.3)
-g1 <- g1 + geom_vline(xintercept = 0, color="gray", size=0.3)
-g1 <- g1 + geom_point(aes(shape=significant), size=2)
-g1 <- g1 + scale_shape("PPVS significant") #scale_shape(guide="none") #scale_color_manual(values=c("black","blue"), guide="none")
-g1 <- g1 + theme(panel.grid.major = element_blank())
-g1 <- g1 + labs(x="PPVS coefficient posterior median", y="Lasso coefficient", title=sprintf("cor=%.2f",coefcor))
-g2 <- ggplot(both.sig, aes(x = postmed, y = coef))
-g2 <- g2 + geom_abline(intercept = 0, slope = 1, color="gray")
-g2 <- g2 + geom_hline(yintercept = 0, color="gray")
-g2 <- g2 + geom_vline(xintercept = 0, color="gray")
-g2 <- g2 + geom_point()
-g2 <- g2 + theme(panel.grid.major = element_blank())
-g2 <- g2 + labs(x="PPVS coefficient posterior median", y="Lasso coefficient", title=sprintf("cor=%.2f",coefcor.sig))
+g1 <- ggplot(both, aes(x = postmed, y = coef)) +
+    geom_abline(intercept = 0, slope = 1, color="gray") +
+    #geom_hline(yintercept = 0, color="gray", size=0.3) +
+    #geom_vline(xintercept = 0, color="gray", size=0.3) +
+    geom_point(aes(shape=significant), size=2) +
+    scale_shape("PPVS significant") + #scale_shape(guide="none") #scale_color_manual(values=c("black","blue"), guide="none")
+    #scale_color_brewer("Diff. in model size", type="div", palette="RdBu") +
+    #scale_color_gradient2() +
+    #theme(panel.grid.major = element_blank()) +
+    labs(x="PPVS coefficient posterior median", y="lasso coefficient", title=sprintf("cor=%.2f",coefcor))
+g2 <- ggplot(both.sig, aes(x = postmed, y = coef)) +
+    geom_abline(intercept = 0, slope = 1, color="gray") +
+    geom_hline(yintercept = 0, color="gray") +
+    geom_vline(xintercept = 0, color="gray") +
+    geom_point() +
+    theme(panel.grid.major = element_blank()) +
+    labs(x="PPVS coefficient posterior median", y="lasso coefficient", title=sprintf("cor=%.2f",coefcor.sig))
 #g12 <- plot_grid(g1, g2, align = "h", ncol = 2)
+g3 <- ggplot(both, aes(x=model_size_PPVS, y=model_size_lasso)) +
+    geom_abline(intercept = 0, slope = 1, color="gray") +
+    geom_point(aes(shape=significant), size=2) +
+    labs(x="PPVS model size", y="lasso model size")
+g4 <- ggplot(both, aes(x=dSize, y=dCoef)) +
+    geom_point(aes(shape=significant), size=2) +
+    labs(x="model size diff", y="coef diff")
+
 
 plot.file <- file.path(PLOTDIR, "Scatter-PPVS-lasso.pdf")
 ggsave(plot.file, g1, height=5, width=6)
 plot.file <- file.path(PLOTDIR, "Scatter-PPVS_sig-lasso_top.pdf")
 ggsave(plot.file, g2)
-
-
+plot.file <- file.path(PLOTDIR, "Scatter-model-sizes.pdf")
+ggsave(plot.file, g3)
+plot.file <- file.path(PLOTDIR, "Scatter-model-size-diff.pdf")
+ggsave(plot.file, g4)
 
 
 ## COMPARE TO TARBASES ####

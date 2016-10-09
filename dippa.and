@@ -247,9 +247,12 @@ Table compiled from original data kindly provided by Aure et al.
 """
 clinicalCaption = """
 Clinical features of the 283 tumor samples included in the analysis.
-Table compiled from original data kindly provided by Aure et al.
-CIS = carcinoma in situ, ER = estrogen receptor, PR = progesterone receptor,
-HER2 = human epidermal growth factor receptor 2.
+Table compiled from original data kindly provided by Aure and associates.
+See \citep{Tavassoli2003} for definitions of the TNM classification.
+CIS: carcinoma in situ. ER: estrogen receptor. PR: progesterone receptor.
+HER2: human epidermal growth factor receptor 2. Multifocality: whether there is a single primary tumor or several. \\
+positive: receptor present in cancer cells. negative: receptor not present.
+missing: information not available
 \\label{clinical-data}
 """
 clinicalScript = INPUT(path=CODEDIR+"R/clinical_table_latex.R")
@@ -367,11 +370,14 @@ finalPlots = REvaluate(
     table1 = finalModels.table,
     table2 = finalModels.optOut2)
 
-
+finalTableBetterScript = INPUT(path="R/final_table_better.R")
+finalTableBetter = REvaluate(
+    script = finalTableBetterScript,
+    table1 = finalModels.table)
 finalModelClean = CSVCleaner(
-    force original = finalModels.optOut1,
+    force original = finalTableBetter.table,
     rename         = "gene=Gene,n_miRNAs=N miRNAs,significant_miRNAs=Significant miRNAs",
-    columns        = "gene,R2_gene,R2_full,n_miRNAs,significant_miRNAs")
+    columns        = "gene,R2_gene,R2_full,deltaR2adj,n_miRNAs,significant_miRNAs")
     //numberFormat = "R2_gene=#0.000\nR2_gene_adj=#0.000\nR2_full=#0.000\nR2_full_adj=#0.000\n",
     //columns        = "gene,R2_gene,R2_full,R2adj_gene,R2adj_full,n_miRNAs,significant_miRNAs")
 finalModelRemoveHsa = SearchReplace(
@@ -397,14 +403,14 @@ N miRNAs: number of miRNA variables in projected model (number of significant mi
 finalModelTable = CSV2Latex(
     tabledata = finalModelRemoveHsa,
     caption   = finalModelCaption,
-    colFormat = "lllrp{7cm}",
-    numberFormat = "R2_gene=RAW_LATEX,R2_full=RAW_LATEX",
-    columns   = "Gene,R2_gene,R2_full,N miRNAs,Significant miRNAs",
+    colFormat = "llllrp{7cm}",
+    numberFormat = "R2_gene=RAW_LATEX,R2_full=RAW_LATEX,deltaR2adj=#0.000",
+    columns   = "Gene,R2_gene,R2_full,deltaR2adj,N miRNAs,Significant miRNAs",
     //columns   = "Gene,R2_gene,R2_full,R2adj_gene,R2adj_full,N miRNAs,Significant miRNAs",
     //rename    = "R2_gene=$R^2_{gene},R2_full=$R^2_{full}$,R2adj_gene=$\\bar{R}^2_{gene}$,R2adj_full=$\\bar{R}^2_{full}$,"+
     //            "N miRNAs=N_{miRNA},Significant miRNAs=Signif miRNAs",
-    rename    = "R2_gene=R2 gene,R2_full=R2 proj",
-    evenColor = "1,1,1",
+    rename    = "R2_gene=R2 gene,R2_full=R2 proj,deltaR2adj=dR2 adj",
+    evenColor = "0.96,0.96,0.96",
     listCols  = "Significant miRNAs")
 
 
@@ -458,6 +464,11 @@ rComparsion = REvaluate(
     table1 = finalModels.table,
     table2 = lassoModels.table)
 
+graphTableScript = INPUT(path=CODEDIR+"R/make_graph_table.R")
+graphTable = REvaluate(
+    script = graphTableScript,
+    table1 = finalCoefs,
+    param1 = "median")
 
 
 // OUTPUT
